@@ -130,7 +130,7 @@
             btnSkapaNyttFlode.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
             btnSkapaNyttFlode.Location = new Point(279, 544);
             btnSkapaNyttFlode.Name = "btnSkapaNyttFlode";
-            btnSkapaNyttFlode.Size = new Size(260, 75);
+            btnSkapaNyttFlode.Size = new Size(367, 75);
             btnSkapaNyttFlode.TabIndex = 9;
             btnSkapaNyttFlode.Text = "Skapa och ge eget namn";
             btnSkapaNyttFlode.Click += BtnSkapaNyttFlode_Click;
