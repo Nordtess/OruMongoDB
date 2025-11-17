@@ -76,6 +76,49 @@ namespace UI
             }
         }
 
+        private void AlexForm_Load(object sender, EventArgs e)
+        {
+
+        }
+
+        private async void btnRaderaKategori_Click(object sender, EventArgs e)
+        {
+            if (string.IsNullOrWhiteSpace(txtKategoriId.Text))
+            {
+                MessageBox.Show("Du måste välja en kategori att radera.");
+                return;
+            }
+
+            var resultat = MessageBox.Show(
+                "Är du säker på att du vill radera denna kategori?",
+                "Bekräfta radering",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Warning);
+
+            if (resultat == DialogResult.No)
+                return;
+
+            try
+            {
+                await _service.RaderaKategoriAsync(txtKategoriId.Text);
+                MessageBox.Show("Kategorin har raderats.");
+            }
+            catch (Exception)
+            {
+                MessageBox.Show("Kategorin hittades inte.");
+            }
+        }
+
+
+        private void txtRssUrl_TextChanged(object sender, EventArgs e)
+        {
+
+        }
+
+        private void AlexForm_Load_1(object sender, EventArgs e)
+        {
+
+        }
     }
 }
 
