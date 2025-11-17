@@ -13,5 +13,8 @@ namespace OruMongoDB.Domain
         public string rssUrl { get; set; } = string.Empty;
         public string displayName { get; set; } = string.Empty;
         public string categoryId { get; set; } = string.Empty;
+
+        public bool IsSaved { get; set; } = false;
+        public DateTime? SavedAt { get; set; }
     }
 }
