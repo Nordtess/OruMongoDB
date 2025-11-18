@@ -9,120 +9,204 @@ namespace OruMongoDB.Core
         private readonly IMongoCollection<Poddflöden> _flodeCollection;
         private readonly IMongoCollection<PoddAvsnitt> _avsnittCollection;
         private readonly IMongoCollection<Kategori> _kategoriCollection;
+        private readonly IMongoClient _client;
+        private readonly IMongoDatabase _db;
 
         public AlexKrav()
         {
             var connector = MongoConnector.Instance;
+
+            _client = connector.Client;     
+            _db = connector.Database;       
+
             _flodeCollection = connector.GetCollection<Poddflöden>("Poddflöden");
             _avsnittCollection = connector.GetCollection<PoddAvsnitt>("PoddAvsnitt");
             _kategoriCollection = connector.GetCollection<Kategori>("Kategorier");
         }
 
+       
         public override async Task<(Poddflöden Flode, List<PoddAvsnitt> Avsnitt)>
             HamtaPoddflodeFranUrlAsync(string rssUrl)
         {
-            var flode = await _flodeCollection
-                .Find(f => f.rssUrl == rssUrl)
-                .FirstOrDefaultAsync();
+            try
+            {
+                var flode = await _flodeCollection
+                    .Find(f => f.rssUrl == rssUrl)
+                    .FirstOrDefaultAsync();
 
-            if (flode == null)
-                throw new InvalidOperationException($"Inget poddflöde med URL: {rssUrl}");
+                if (flode == null)
+                    throw new InvalidOperationException($"Inget poddflöde med URL: {rssUrl}");
 
-            var avsnitt = await _avsnittCollection
-                .Find(a => a.feedId == flode.Id)
-                .ToListAsync();
+                var avsnitt = await _avsnittCollection
+                    .Find(a => a.feedId == flode.Id)
+                    .ToListAsync();
 
-            return (flode, avsnitt);
+                return (flode, avsnitt);
+            }
+            catch (Exception ex)
+            {
+                throw new ApplicationException("Fel vid hämtning av poddflöde.", ex);
+            }
         }
 
+        
         public override async Task SparaPoddflodeAsync(Poddflöden flode)
         {
-            var filter = Builders<Poddflöden>.Filter.Eq(f => f.rssUrl, flode.rssUrl);
+            using var session = await _client.StartSessionAsync();
 
-            await _flodeCollection.ReplaceOneAsync(
-                filter,
-                flode,
-                new ReplaceOptions { IsUpsert = true });
+            try
+            {
+                session.StartTransaction();
+
+                var filter = Builders<Poddflöden>.Filter.Eq(f => f.rssUrl, flode.rssUrl);
+
+                await _flodeCollection.ReplaceOneAsync(
+                    session,
+                    filter,
+                    flode,
+                    new ReplaceOptions { IsUpsert = true });
+
+                await session.CommitTransactionAsync();
+            }
+            catch (Exception ex)
+            {
+                await session.AbortTransactionAsync();
+                throw new ApplicationException("Fel vid sparande av poddflöde.", ex);
+            }
         }
 
+        
         public override async Task SparaAvsnittAsync(List<PoddAvsnitt> avsnitt)
         {
             if (avsnitt == null || avsnitt.Count == 0)
                 return;
 
-            await _avsnittCollection.InsertManyAsync(avsnitt);
+            using var session = await _client.StartSessionAsync();
+
+            try
+            {
+                session.StartTransaction();
+
+                await _avsnittCollection.InsertManyAsync(session, avsnitt);
+
+                await session.CommitTransactionAsync();
+            }
+            catch (Exception ex)
+            {
+                await session.AbortTransactionAsync();
+                throw new ApplicationException("Fel vid sparande av avsnitt.", ex);
+            }
         }
 
+       
         public async Task AndraNamnPaPoddflodeAsync(string id, string nyttNamn)
         {
-            var filter = Builders<Poddflöden>.Filter.Eq(f => f.Id, id);
+            using var session = await _client.StartSessionAsync();
 
-            var update = Builders<Poddflöden>.Update.Set(f => f.displayName, nyttNamn);
+            try
+            {
+                session.StartTransaction();
 
-            var result = await _flodeCollection.UpdateOneAsync(filter, update);
+                var filter = Builders<Poddflöden>.Filter.Eq(f => f.Id, id);
+                var update = Builders<Poddflöden>.Update.Set(f => f.displayName, nyttNamn);
 
-            if (result.MatchedCount == 0)
-                throw new InvalidOperationException(
-                    $"Kunde inte hitta poddflöde med id {id}");
+                var result = await _flodeCollection.UpdateOneAsync(session, filter, update);
+
+                if (result.MatchedCount == 0)
+                    throw new InvalidOperationException($"Kunde inte hitta poddflöde med id {id}");
+
+                await session.CommitTransactionAsync();
+            }
+            catch (Exception ex)
+            {
+                await session.AbortTransactionAsync();
+                throw new ApplicationException("Fel vid uppdatering av namn.", ex);
+            }
         }
 
+        
         public async Task<Poddflöden> HamtaFlodeViaIdAsync(string id)
         {
-            return await _flodeCollection
-                .Find(f => f.Id == id)
-                .FirstOrDefaultAsync();
+            try
+            {
+                return await _flodeCollection
+                    .Find(f => f.Id == id)
+                    .FirstOrDefaultAsync();
+            }
+            catch (Exception ex)
+            {
+                throw new ApplicationException("Fel vid hämtning av poddflöde via ID.", ex);
+            }
         }
 
         public async Task<Poddflöden> SkapaNyttPoddflodeAsync(string rssUrl, string egetNamn)
         {
-            // kontrollera om det redan finns
-            var finns = await _flodeCollection.Find(f => f.rssUrl == rssUrl).FirstOrDefaultAsync();
-            if (finns != null)
-                throw new InvalidOperationException("Detta poddflöde finns redan i databasen.");
+            using var session = await _client.StartSessionAsync();
 
-            // skapa nytt flöde
-            var nyttFlode = new Poddflöden
+            try
             {
-                rssUrl = rssUrl,
-                displayName = egetNamn,
-                categoryId = "6915bfa1d1eb7bd02636fd87"
-            };
+                session.StartTransaction();
 
-            await _flodeCollection.InsertOneAsync(nyttFlode);
+                var befintligt = await _flodeCollection
+                    .Find(f => f.rssUrl == rssUrl)
+                    .FirstOrDefaultAsync();
 
-            return nyttFlode;
+                if (befintligt != null)
+                    throw new InvalidOperationException("Detta poddflöde finns redan.");
+
+                var nyttFlode = new Poddflöden
+                {
+                    rssUrl = rssUrl,
+                    displayName = egetNamn,
+                    categoryId = "6915bfa1d1eb7bd02636fd87"
+                };
+
+                await _flodeCollection.InsertOneAsync(session, nyttFlode);
+
+                await session.CommitTransactionAsync();
+
+                return nyttFlode;
+            }
+            catch (Exception ex)
+            {
+                await session.AbortTransactionAsync();
+                throw new ApplicationException("Fel vid skapande av nytt poddflöde.", ex);
+            }
         }
 
-
+        
         public async Task RaderaKategoriAsync(string kategoriId)
         {
-        
+            using var session = await _client.StartSessionAsync();
 
-                // 1. kontrollera om kategorin finns
+            try
+            {
+                session.StartTransaction();
+
+                // kontrollera att kategorin finns
                 var finns = await _kategoriCollection
                     .Find(c => c.Id == kategoriId)
                     .FirstOrDefaultAsync();
 
                 if (finns == null)
-        
-                throw new InvalidOperationException("Kategorin hittades inte.");
-            
-                // 2. radera kategorin
-                var result = await _kategoriCollection.DeleteOneAsync(c => c.Id == kategoriId);
-                
-                // 3. Sätta categoryId = null på flöden som använder kategorin
+                    throw new InvalidOperationException("Kategorin hittades inte.");
+
+                // radera kategorin
+                await _kategoriCollection.DeleteOneAsync(session, c => c.Id == kategoriId);
+
+                // ta bort categoryId från poddflöden
                 var filter = Builders<Poddflöden>.Filter.Eq(f => f.categoryId, kategoriId);
                 var update = Builders<Poddflöden>.Update.Set(f => f.categoryId, null);
 
-                await _flodeCollection.UpdateManyAsync(filter, update);
+                await _flodeCollection.UpdateManyAsync(session, filter, update);
 
-              
+                await session.CommitTransactionAsync();
             }
-        
+            catch (Exception ex)
+            {
+                await session.AbortTransactionAsync();
+                throw new ApplicationException("Kategorin hittades inte.", ex);
             }
         }
-
-    
-
-
-
+    }
+}
