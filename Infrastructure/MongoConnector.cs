@@ -9,8 +9,11 @@ namespace OruMongoDB.Infrastructure
 
         public static MongoConnector Instance => _instance.Value;
 
+        private readonly IMongoClient _client;
         private readonly IMongoDatabase _database;
 
+        public IMongoClient Client => _client;   
+        public IMongoDatabase Database => _database;
         public MongoConnector()
         {
             var connectionString =
@@ -18,8 +21,8 @@ namespace OruMongoDB.Infrastructure
 
             var databaseName = "G20";
 
-            var client = new MongoClient(connectionString);
-            _database = client.GetDatabase(databaseName);
+             _client = new MongoClient(connectionString);
+            _database = _client.GetDatabase(databaseName);
         }
 
         public IMongoDatabase GetDatabase() => _database;
