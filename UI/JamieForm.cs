@@ -64,16 +64,22 @@ namespace UI
 
         private async void buttonSpara_Click(object sender, EventArgs e)
         {
-            if (_currentFlode == null || _currentAvsnitt == null)
+            if (_currentFlode == null)
             {
                 MessageBox.Show("Inget flöde hämtat ännu!");
                 return;
             }
 
-            await _service.SparaPoddflodeAsync(_currentFlode);
-            await _service.SparaAvsnittAsync(_currentAvsnitt);
+            // Validation is the pod already saved?
+            if (_currentFlode.IsSaved)
+            {
+                MessageBox.Show("Den här podden är redan sparad.");
+                return;
+            }
 
-            MessageBox.Show("Podden och avsnitten sparades!");
+            await _service.SparaPoddflodeAsync(_currentFlode);
+
+            MessageBox.Show("Podden sparades!");
         }
 
         private void buttonVisaSparade_Click(object sender, EventArgs e)
@@ -99,14 +105,54 @@ namespace UI
 
         }
 
+        private void textBoxUrl_TextChanged(object sender, EventArgs e)
+        {
+
+        }
+
+        private void label1_Click(object sender, EventArgs e)
+        {
+
+        }
+
         private void textBoxDetails_TextChanged(object sender, EventArgs e)
         {
 
         }
 
-        private void textBoxUrl_TextChanged(object sender, EventArgs e)
+        private async void btnTaBort_Click(object sender, EventArgs e)
         {
+            if (listBoxSparade.SelectedIndex < 0)
+            {
+                MessageBox.Show("Välj ett sparat poddflöde att ta bort.");
+                return;
+            }
 
+
+            string selected = listBoxSparade.SelectedItem.ToString();
+
+
+            string rssUrl = selected.Substring(selected.IndexOf("(") + 1).TrimEnd(')');
+
+
+            await _service.TaBortSparatFlodeAsync(rssUrl);
+
+            MessageBox.Show("Poddflödet har tagits bort från dina sparade.");
+
+
+            buttonVisaSparade_Click(null, null);
+        }
+
+        private void linkLabel1_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
+        {
+            Clipboard.SetText(linkLabel1.Text);
+            MessageBox.Show("Kopierat till urklipp!");
+        }
+
+        private void linkLabel2_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
+        {
+            Clipboard.SetText(linkLabel2.Text);
+            MessageBox.Show("Kopierat till urklipp!");
         }
     }
 }

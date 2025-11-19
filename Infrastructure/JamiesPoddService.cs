@@ -41,6 +41,13 @@ namespace OruMongoDB.Core
         public override async Task SparaPoddflodeAsync(Poddflöden flode)
         {
             
+            flode.IsSaved = true;
+
+            if (flode.SavedAt == null)
+            {
+                flode.SavedAt = DateTime.UtcNow;
+            }
+
             var filter = Builders<Poddflöden>.Filter.Eq(f => f.rssUrl, flode.rssUrl);
 
             await _flodeCollection.ReplaceOneAsync(
@@ -61,7 +68,19 @@ namespace OruMongoDB.Core
         // Get all flows from the DB
         public IReadOnlyList<Poddflöden> HamtaAllaFloden()
         {
-            return _flodeCollection.Find(Builders<Poddflöden>.Filter.Empty).ToList();
+            var filter = Builders<Poddflöden>.Filter.Eq(f => f.IsSaved, true);
+            return _flodeCollection.Find(filter).ToList();
+        }
+
+        public async Task TaBortSparatFlodeAsync(string rssUrl)
+        {
+            var filter = Builders<Poddflöden>.Filter.Eq(f => f.rssUrl, rssUrl);
+
+            var update = Builders<Poddflöden>.Update
+                .Set(f => f.IsSaved, false)
+                .Set(f => f.SavedAt, null);
+
+            await _flodeCollection.UpdateOneAsync(filter, update);
         }
     }
 }

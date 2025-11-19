@@ -36,13 +36,16 @@
             lblEgetNamn = new Label();
             txtEgetNamn = new TextBox();
             btnSkapaNyttFlode = new Button();
+            lblKategoriId = new Label();
+            txtKategoriId = new TextBox();
+            btnRaderaKategori = new Button();
             SuspendLayout();
             // 
             // lblId
             // 
             lblId.AutoSize = true;
             lblId.Font = new Font("Segoe UI", 10F);
-            lblId.Location = new Point(30, 30);
+            lblId.Location = new Point(40, 20);
             lblId.Name = "lblId";
             lblId.Size = new Size(91, 19);
             lblId.TabIndex = 0;
@@ -51,16 +54,16 @@
             // txtPodId
             // 
             txtPodId.Font = new Font("Segoe UI", 10F);
-            txtPodId.Location = new Point(150, 27);
+            txtPodId.Location = new Point(240, 20);
             txtPodId.Name = "txtPodId";
-            txtPodId.Size = new Size(280, 25);
+            txtPodId.Size = new Size(400, 43);
             txtPodId.TabIndex = 1;
             // 
             // lblNyttNamn
             // 
             lblNyttNamn.AutoSize = true;
             lblNyttNamn.Font = new Font("Segoe UI", 10F);
-            lblNyttNamn.Location = new Point(30, 80);
+            lblNyttNamn.Location = new Point(40, 80);
             lblNyttNamn.Name = "lblNyttNamn";
             lblNyttNamn.Size = new Size(78, 19);
             lblNyttNamn.TabIndex = 2;
@@ -69,29 +72,26 @@
             // txtNyttNamn
             // 
             txtNyttNamn.Font = new Font("Segoe UI", 10F);
-            txtNyttNamn.Location = new Point(150, 77);
+            txtNyttNamn.Location = new Point(240, 80);
             txtNyttNamn.Name = "txtNyttNamn";
-            txtNyttNamn.Size = new Size(280, 25);
+            txtNyttNamn.Size = new Size(400, 43);
             txtNyttNamn.TabIndex = 3;
             // 
             // btnAndraNamn
             // 
             btnAndraNamn.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
-            btnAndraNamn.Location = new Point(150, 112);
-            btnAndraNamn.Margin = new Padding(2, 1, 2, 1);
+            btnAndraNamn.Location = new Point(240, 110);
             btnAndraNamn.Name = "btnAndraNamn";
-            btnAndraNamn.Size = new Size(140, 35);
+            btnAndraNamn.Size = new Size(230, 50);
             btnAndraNamn.TabIndex = 4;
             btnAndraNamn.Text = "Ändra namn";
-            btnAndraNamn.UseVisualStyleBackColor = true;
             btnAndraNamn.Click += BtnAndraNamn_Click;
             // 
             // lblRssUrl
             // 
             lblRssUrl.AutoSize = true;
             lblRssUrl.Font = new Font("Segoe UI", 10F);
-            lblRssUrl.Location = new Point(30, 164);
-            lblRssUrl.Margin = new Padding(2, 0, 2, 0);
+            lblRssUrl.Location = new Point(40, 200);
             lblRssUrl.Name = "lblRssUrl";
             lblRssUrl.Size = new Size(65, 19);
             lblRssUrl.TabIndex = 5;
@@ -100,18 +100,16 @@
             // txtRssUrl
             // 
             txtRssUrl.Font = new Font("Segoe UI", 10F);
-            txtRssUrl.Location = new Point(150, 161);
-            txtRssUrl.Margin = new Padding(2, 1, 2, 1);
+            txtRssUrl.Location = new Point(240, 200);
             txtRssUrl.Name = "txtRssUrl";
-            txtRssUrl.Size = new Size(280, 25);
+            txtRssUrl.Size = new Size(400, 43);
             txtRssUrl.TabIndex = 6;
             // 
             // lblEgetNamn
             // 
             lblEgetNamn.AutoSize = true;
             lblEgetNamn.Font = new Font("Segoe UI", 10F);
-            lblEgetNamn.Location = new Point(30, 211);
-            lblEgetNamn.Margin = new Padding(2, 0, 2, 0);
+            lblEgetNamn.Location = new Point(40, 260);
             lblEgetNamn.Name = "lblEgetNamn";
             lblEgetNamn.Size = new Size(78, 19);
             lblEgetNamn.TabIndex = 7;
@@ -120,48 +118,76 @@
             // txtEgetNamn
             // 
             txtEgetNamn.Font = new Font("Segoe UI", 10F);
-            txtEgetNamn.Location = new Point(150, 208);
-            txtEgetNamn.Margin = new Padding(2, 1, 2, 1);
+            txtEgetNamn.Location = new Point(240, 260);
             txtEgetNamn.Name = "txtEgetNamn";
-            txtEgetNamn.Size = new Size(280, 25);
+            txtEgetNamn.Size = new Size(400, 43);
             txtEgetNamn.TabIndex = 8;
             // 
             // btnSkapaNyttFlode
             // 
             btnSkapaNyttFlode.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
-            btnSkapaNyttFlode.Location = new Point(150, 255);
-            btnSkapaNyttFlode.Margin = new Padding(2, 1, 2, 1);
+            btnSkapaNyttFlode.Location = new Point(240, 290);
             btnSkapaNyttFlode.Name = "btnSkapaNyttFlode";
-            btnSkapaNyttFlode.Size = new Size(198, 35);
+            btnSkapaNyttFlode.Size = new Size(300, 50);
             btnSkapaNyttFlode.TabIndex = 9;
             btnSkapaNyttFlode.Text = "Skapa och ge eget namn";
             btnSkapaNyttFlode.Click += BtnSkapaNyttFlode_Click;
             // 
+            // lblKategoriId
+            // 
+            lblKategoriId.AutoSize = true;
+            lblKategoriId.Font = new Font("Segoe UI", 10F);
+            lblKategoriId.Location = new Point(40, 380);
+            lblKategoriId.Name = "lblKategoriId";
+            lblKategoriId.Size = new Size(157, 37);
+            lblKategoriId.TabIndex = 10;
+            lblKategoriId.Text = "Kategori ID:";
+            // 
+            // txtKategoriId
+            // 
+            txtKategoriId.Font = new Font("Segoe UI", 10F);
+            txtKategoriId.Location = new Point(240, 380);
+            txtKategoriId.Name = "txtKategoriId";
+            txtKategoriId.Size = new Size(400, 43);
+            txtKategoriId.TabIndex = 11;
+            // 
+            // btnRaderaKategori
+            // 
+            btnRaderaKategori.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+            btnRaderaKategori.Location = new Point(240, 410);
+            btnRaderaKategori.Name = "btnRaderaKategori";
+            btnRaderaKategori.Size = new Size(230, 50);
+            btnRaderaKategori.TabIndex = 12;
+            btnRaderaKategori.Text = "Radera kategori";
+            btnRaderaKategori.Click += btnRaderaKategori_Click;
+            // 
             // AlexForm
             // 
-            AutoScaleDimensions = new SizeF(7F, 15F);
-            AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(470, 312);
+            ClientSize = new Size(700, 520);
+            Controls.Add(lblId);
+            Controls.Add(txtPodId);
+            Controls.Add(lblNyttNamn);
+            Controls.Add(txtNyttNamn);
             Controls.Add(btnAndraNamn);
             Controls.Add(lblRssUrl);
             Controls.Add(txtRssUrl);
             Controls.Add(lblEgetNamn);
             Controls.Add(txtEgetNamn);
             Controls.Add(btnSkapaNyttFlode);
-            Controls.Add(txtNyttNamn);
-            Controls.Add(lblNyttNamn);
-            Controls.Add(txtPodId);
-            Controls.Add(lblId);
+            Controls.Add(lblKategoriId);
+            Controls.Add(txtKategoriId);
+            Controls.Add(btnRaderaKategori);
             Name = "AlexForm";
-            Text = "Ändra namn på poddflöde";
-            Load += AlexForm_Load;
+            StartPosition = FormStartPosition.CenterScreen;
+            Load += AlexForm_Load_1;
             ResumeLayout(false);
             PerformLayout();
-
-
-
-
         }
+
+
+
+
+
 
         #endregion
 
@@ -175,6 +201,11 @@
         private System.Windows.Forms.Label lblEgetNamn;
         private System.Windows.Forms.TextBox txtEgetNamn;
         private System.Windows.Forms.Button btnSkapaNyttFlode;
+        private System.Windows.Forms.TextBox txtKategoriId;
+        private System.Windows.Forms.Button btnRaderaKategori;
+        private System.Windows.Forms.Label lblKategoriId;
+
+
 
     }
 }
