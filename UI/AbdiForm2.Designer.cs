@@ -52,6 +52,7 @@
             tbUrl.TabIndex = 1;
             // 
             // btnhämta
+            //
             // 
             btnhämta.Location = new Point(23, 95);
             btnhämta.Name = "btnhämta";
@@ -69,6 +70,7 @@
             listboxAvsnitt1.Size = new Size(223, 139);
             listboxAvsnitt1.TabIndex = 3;
             listboxAvsnitt1.SelectedIndexChanged += listboxAvsnitt1_SelectedIndexChanged;
+            listboxAvsnitt1.DoubleClick += listboxAvsnitt1_DoubleClick;
             // 
             // visabeskrivning
             // 
@@ -91,9 +93,14 @@
             Controls.Add(label1);
             Name = "AbdiForm2";
             Text = "AbdiForm2";
+            Load += AbdiForm2_Load;
             ResumeLayout(false);
             PerformLayout();
         }
+
+
+
+   
 
         #endregion
 

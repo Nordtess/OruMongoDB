@@ -94,5 +94,22 @@ namespace UI
         {
 
         }
+        private void listboxAvsnitt1_DoubleClick(object sender, EventArgs e)
+        {
+            if (listboxAvsnitt1.SelectedItem is not PoddAvsnitt avsnitt)
+                return;
+
+            // Öppna ny form med detaljer
+            using (var f = new AvsnittDetaljForm(avsnitt))
+            {
+                f.ShowDialog(this); // modalt fönster över AbdiForm2
+            }
+        }
+
+
+        private void AbdiForm2_Load(object sender, EventArgs e)
+        {
+
+        }
     }
 }
