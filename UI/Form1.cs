@@ -41,12 +41,18 @@ namespace UI
         private void button1_Click_1(object sender, EventArgs e)
         {
             var f = new AlexForm();
-            f.Show(); 
+            f.Show();
         }
         private void btnCategories_Click(object sender, EventArgs e)
         {
             DiyarForm form = new DiyarForm();
             form.Show();
+        }
+
+        private void button2_Click(object sender, EventArgs e)
+        {
+            var AbdiForm2 = new AbdiForm2();
+            AbdiForm2.Show();
         }
     }
 

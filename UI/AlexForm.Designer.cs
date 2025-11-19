@@ -47,7 +47,7 @@
             lblId.Font = new Font("Segoe UI", 10F);
             lblId.Location = new Point(40, 20);
             lblId.Name = "lblId";
-            lblId.Size = new Size(179, 37);
+            lblId.Size = new Size(91, 19);
             lblId.TabIndex = 0;
             lblId.Text = "Poddflöde ID:";
             // 
@@ -65,7 +65,7 @@
             lblNyttNamn.Font = new Font("Segoe UI", 10F);
             lblNyttNamn.Location = new Point(40, 80);
             lblNyttNamn.Name = "lblNyttNamn";
-            lblNyttNamn.Size = new Size(148, 37);
+            lblNyttNamn.Size = new Size(78, 19);
             lblNyttNamn.TabIndex = 2;
             lblNyttNamn.Text = "Nytt namn:";
             // 
@@ -93,7 +93,7 @@
             lblRssUrl.Font = new Font("Segoe UI", 10F);
             lblRssUrl.Location = new Point(40, 200);
             lblRssUrl.Name = "lblRssUrl";
-            lblRssUrl.Size = new Size(126, 37);
+            lblRssUrl.Size = new Size(65, 19);
             lblRssUrl.TabIndex = 5;
             lblRssUrl.Text = "RSS-URL:";
             // 
@@ -111,7 +111,7 @@
             lblEgetNamn.Font = new Font("Segoe UI", 10F);
             lblEgetNamn.Location = new Point(40, 260);
             lblEgetNamn.Name = "lblEgetNamn";
-            lblEgetNamn.Size = new Size(150, 37);
+            lblEgetNamn.Size = new Size(78, 19);
             lblEgetNamn.TabIndex = 7;
             lblEgetNamn.Text = "Eget namn:";
             // 
