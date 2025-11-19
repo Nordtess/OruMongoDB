@@ -93,5 +93,20 @@ namespace UI
                 listBoxSparade.Items.Add($"{f.displayName} ({f.rssUrl})");
             }
         }
+
+        private void JamieForm_Load(object sender, EventArgs e)
+        {
+
+        }
+
+        private void textBoxDetails_TextChanged(object sender, EventArgs e)
+        {
+
+        }
+
+        private void textBoxUrl_TextChanged(object sender, EventArgs e)
+        {
+
+        }
     }
 }

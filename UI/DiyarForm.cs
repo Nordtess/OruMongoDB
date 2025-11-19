@@ -71,5 +71,9 @@ namespace UI
             }
         }
 
+        private void txtPoddId_TextChanged(object sender, EventArgs e)
+        {
+
+        }
     }
 }

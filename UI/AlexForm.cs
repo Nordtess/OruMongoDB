@@ -76,6 +76,10 @@ namespace UI
             }
         }
 
+        private void AlexForm_Load(object sender, EventArgs e)
+        {
+
+        }
     }
 }
 

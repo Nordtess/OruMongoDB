@@ -36,19 +36,26 @@
             buttonVisaSparade = new Button();
             listBoxSparade = new ListBox();
             SuspendLayout();
-            
+            // 
+            // textBoxUrl
+            // 
             textBoxUrl.Location = new Point(161, 97);
             textBoxUrl.Name = "textBoxUrl";
             textBoxUrl.Size = new Size(292, 23);
             textBoxUrl.TabIndex = 0;
-            
+            textBoxUrl.TextChanged += textBoxUrl_TextChanged;
+            // 
+            // listBoxAvsnitt
+            // 
             listBoxAvsnitt.FormattingEnabled = true;
             listBoxAvsnitt.Location = new Point(162, 157);
             listBoxAvsnitt.Name = "listBoxAvsnitt";
             listBoxAvsnitt.Size = new Size(120, 94);
             listBoxAvsnitt.TabIndex = 1;
             listBoxAvsnitt.SelectedIndexChanged += listBoxAvsnitt_SelectedIndexChanged;
-            
+            // 
+            // buttonHamta
+            // 
             buttonHamta.Location = new Point(493, 100);
             buttonHamta.Name = "buttonHamta";
             buttonHamta.Size = new Size(75, 23);
@@ -56,14 +63,19 @@
             buttonHamta.Text = "Hämta";
             buttonHamta.UseVisualStyleBackColor = true;
             buttonHamta.Click += buttonHamta_Click;
-            
+            // 
+            // textBoxDetails
+            // 
             textBoxDetails.Location = new Point(319, 157);
             textBoxDetails.Multiline = true;
             textBoxDetails.Name = "textBoxDetails";
             textBoxDetails.ScrollBars = ScrollBars.Vertical;
             textBoxDetails.Size = new Size(261, 135);
             textBoxDetails.TabIndex = 3;
-            
+            textBoxDetails.TextChanged += textBoxDetails_TextChanged;
+            // 
+            // buttonSpara
+            // 
             buttonSpara.Location = new Point(170, 339);
             buttonSpara.Name = "buttonSpara";
             buttonSpara.Size = new Size(75, 23);
@@ -71,7 +83,9 @@
             buttonSpara.Text = "Spara flöde";
             buttonSpara.UseVisualStyleBackColor = true;
             buttonSpara.Click += buttonSpara_Click;
-            
+            // 
+            // buttonVisaSparade
+            // 
             buttonVisaSparade.Location = new Point(274, 339);
             buttonVisaSparade.Name = "buttonVisaSparade";
             buttonVisaSparade.Size = new Size(155, 23);
@@ -79,13 +93,17 @@
             buttonVisaSparade.Text = "Visa sparade flöden";
             buttonVisaSparade.UseVisualStyleBackColor = true;
             buttonVisaSparade.Click += buttonVisaSparade_Click;
-            
+            // 
+            // listBoxSparade
+            // 
             listBoxSparade.FormattingEnabled = true;
             listBoxSparade.Location = new Point(493, 339);
             listBoxSparade.Name = "listBoxSparade";
             listBoxSparade.Size = new Size(120, 94);
             listBoxSparade.TabIndex = 6;
-            
+            // 
+            // JamieForm
+            // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(800, 450);
@@ -98,7 +116,7 @@
             Controls.Add(textBoxUrl);
             Name = "JamieForm";
             Text = "JamieForm";
-            
+            Load += JamieForm_Load;
             ResumeLayout(false);
             PerformLayout();
         }

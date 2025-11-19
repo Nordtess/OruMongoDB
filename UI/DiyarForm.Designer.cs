@@ -31,6 +31,9 @@
             txtCategoryName = new TextBox();
             btnCreate = new Button();
             lstCategories = new ListBox();
+            txtPoddId = new TextBox();
+            txtCategoryId = new TextBox();
+            btnSetCategory = new Button();
             SuspendLayout();
             // 
             // lblName
@@ -64,32 +67,39 @@
             lstCategories.Name = "lstCategories";
             lstCategories.Size = new Size(260, 214);
             lstCategories.TabIndex = 3;
+            // 
             // txtPoddId
-            this.txtPoddId = new TextBox();
-            this.txtPoddId.Location = new Point(20, 160);
-            this.txtPoddId.Size = new Size(250, 30);
-            this.txtPoddId.PlaceholderText = "Podd ID";
-            this.Controls.Add(this.txtPoddId);
-
+            // 
+            txtPoddId.Location = new Point(20, 160);
+            txtPoddId.Name = "txtPoddId";
+            txtPoddId.PlaceholderText = "Podd ID";
+            txtPoddId.Size = new Size(250, 23);
+            txtPoddId.TabIndex = 0;
+            txtPoddId.TextChanged += txtPoddId_TextChanged;
+            // 
             // txtCategoryId
-            this.txtCategoryId = new TextBox();
-            this.txtCategoryId.Location = new Point(20, 200);
-            this.txtCategoryId.Size = new Size(250, 30);
-            this.txtCategoryId.PlaceholderText = "Kategori ID";
-            this.Controls.Add(this.txtCategoryId);
-
+            // 
+            txtCategoryId.Location = new Point(20, 200);
+            txtCategoryId.Name = "txtCategoryId";
+            txtCategoryId.PlaceholderText = "Kategori ID";
+            txtCategoryId.Size = new Size(250, 23);
+            txtCategoryId.TabIndex = 1;
+            // 
             // btnSetCategory
-            this.btnSetCategory = new Button();
-            this.btnSetCategory.Location = new Point(20, 240);
-            this.btnSetCategory.Size = new Size(250, 40);
-            this.btnSetCategory.Text = "Sätt kategori på podd";
-            this.btnSetCategory.Click += btnSetCategory_Click;
-            this.Controls.Add(this.btnSetCategory);
-
+            // 
+            btnSetCategory.Location = new Point(20, 240);
+            btnSetCategory.Name = "btnSetCategory";
+            btnSetCategory.Size = new Size(250, 40);
+            btnSetCategory.TabIndex = 2;
+            btnSetCategory.Text = "Sätt kategori på podd";
+            btnSetCategory.Click += btnSetCategory_Click;
             // 
             // DiyarForm
             // 
             ClientSize = new Size(600, 300);
+            Controls.Add(txtPoddId);
+            Controls.Add(txtCategoryId);
+            Controls.Add(btnSetCategory);
             Controls.Add(lblName);
             Controls.Add(txtCategoryName);
             Controls.Add(btnCreate);
