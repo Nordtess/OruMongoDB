@@ -70,17 +70,20 @@ namespace UI
                 return;
             }
 
-            // Validation is the pod already saved?
             if (_currentFlode.IsSaved)
             {
                 MessageBox.Show("Den här podden är redan sparad.");
                 return;
             }
 
-            await _service.SparaPoddflodeAsync(_currentFlode);
+            
+            var avsnittLista = _currentAvsnitt ?? new List<PoddAvsnitt>();
 
-            MessageBox.Show("Podden sparades!");
+            await _service.SparaPoddflodeOchAvsnittAsync(_currentFlode, avsnittLista);
+
+            MessageBox.Show("Podden + avsnitt sparades i en transaktion!");
         }
+
 
         private void buttonVisaSparade_Click(object sender, EventArgs e)
         {

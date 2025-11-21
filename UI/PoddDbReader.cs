@@ -19,8 +19,8 @@ namespace OruMongoDB.UI
             {
                 sb.AppendLine("=== Test: Läs data från MongoDB (G20) ===");
 
-                
-                var connector = new MongoConnector();
+
+                var connector = MongoConnector.Instance;
                 IMongoDatabase database = connector.GetDatabase();
                 sb.AppendLine(" Ansluten till MongoDB och databasen 'G20'.");
                 sb.AppendLine();
