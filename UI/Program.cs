@@ -13,7 +13,7 @@ namespace OruMongoDB.UI
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
 
-           Application.Run(new AbdiForm2());
+           Application.Run(new Form1());
 
         }
     }
