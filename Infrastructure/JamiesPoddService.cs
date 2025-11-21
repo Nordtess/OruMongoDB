@@ -36,7 +36,6 @@ namespace OruMongoDB.Core
 
             if (flode == null)
             {
-                
                 throw new ValidationException(
                     $"Hittade inget poddflöde i databasen med RSS-URL: {rssUrl}");
             }
@@ -55,7 +54,6 @@ namespace OruMongoDB.Core
             if (flode == null)
                 throw new ArgumentNullException(nameof(flode));
 
-            
             PoddValidator.ValidateRssUrl(flode.rssUrl);
             PoddValidator.ValidatePoddNamn(flode.displayName);
 
@@ -83,7 +81,7 @@ namespace OruMongoDB.Core
             await _avsnittCollection.InsertManyAsync(avsnitt);
         }
 
-
+        
         public async Task SparaPoddflodeOchAvsnittAsync(
             Poddflöden flode,
             List<PoddAvsnitt> avsnitt)
@@ -91,7 +89,6 @@ namespace OruMongoDB.Core
             if (flode == null)
                 throw new ArgumentNullException(nameof(flode));
 
-            
             PoddValidator.ValidateRssUrl(flode.rssUrl);
             PoddValidator.ValidatePoddNamn(flode.displayName);
 
@@ -112,55 +109,41 @@ namespace OruMongoDB.Core
                     flode,
                     new ReplaceOptions { IsUpsert = true });
 
-                
                 if (avsnitt != null && avsnitt.Count > 0)
                 {
                     
                     var avsnittFilter = Builders<PoddAvsnitt>.Filter.Eq(a => a.feedId, flode.Id);
                     await _avsnittCollection.DeleteManyAsync(session, avsnittFilter);
 
-                    
                     await _avsnittCollection.InsertManyAsync(session, avsnitt);
                 }
             });
         }
 
-
-
+        
         public IReadOnlyList<Poddflöden> HamtaAllaFloden()
         {
             var filter = Builders<Poddflöden>.Filter.Eq(f => f.IsSaved, true);
             return _flodeCollection.Find(filter).ToList();
         }
 
-
+        
         public async Task TaBortSparatFlodeAsync(string rssUrl)
         {
             PoddValidator.ValidateRssUrl(rssUrl);
 
-            
-            var flode = await _flodeCollection
-                .Find(f => f.rssUrl == rssUrl)
-                .FirstOrDefaultAsync();
+            var filter = Builders<Poddflöden>.Filter.Eq(f => f.rssUrl, rssUrl);
 
-            if (flode == null)
-                throw new ValidationException($"Hittade inget poddflöde med RSS-URL: {rssUrl}");
+            var update = Builders<Poddflöden>.Update
+                .Set(f => f.IsSaved, false)
+                .Set(f => f.SavedAt, (DateTime?)null);
 
-            await _connector.RunTransactionAsync(async session =>
+            var result = await _flodeCollection.UpdateOneAsync(filter, update);
+
+            if (result.MatchedCount == 0)
             {
-                
-                var flodeFilter = Builders<Poddflöden>.Filter.Eq(f => f.Id, flode.Id);
-                var update = Builders<Poddflöden>.Update
-                    .Set(f => f.IsSaved, false)
-                    .Set(f => f.SavedAt, (DateTime?)null);
-
-                await _flodeCollection.UpdateOneAsync(session, flodeFilter, update);
-
-                
-                var avsnittFilter = Builders<PoddAvsnitt>.Filter.Eq(a => a.feedId, flode.Id);
-                await _avsnittCollection.DeleteManyAsync(session, avsnittFilter);
-            });
+                throw new ValidationException($"Hittade inget poddflöde med RSS-URL: {rssUrl}");
+            }
         }
-
     }
 }

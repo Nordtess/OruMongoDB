@@ -165,7 +165,7 @@ namespace UI
                     return;
                 }
 
-               
+                
                 string rssUrl = selected.Substring(selected.IndexOf("(") + 1).TrimEnd(')');
 
                 
