@@ -6,17 +6,18 @@ namespace OruMongoDB.Core
 {
     public class JamiesPoddService : PoddServiceBase
     {
+        private readonly MongoConnector _connector;
         private readonly IMongoCollection<Poddflöden> _flodeCollection;
         private readonly IMongoCollection<PoddAvsnitt> _avsnittCollection;
 
         public JamiesPoddService()
         {
-            var connector = MongoConnector.Instance;
-            _flodeCollection = connector.GetCollection<Poddflöden>("Poddflöden");
-            _avsnittCollection = connector.GetCollection<PoddAvsnitt>("PoddAvsnitt");
+            _connector = MongoConnector.Instance;
+            _flodeCollection = _connector.GetCollection<Poddflöden>("Poddflöden");
+            _avsnittCollection = _connector.GetCollection<PoddAvsnitt>("PoddAvsnitt");
         }
 
-        // Get podflow
+        
         public override async Task<(Poddflöden Flode, List<PoddAvsnitt> Avsnitt)>
             HamtaPoddflodeFranUrlAsync(string rssUrl)
         {
@@ -37,10 +38,9 @@ namespace OruMongoDB.Core
             return (flode, avsnitt);
         }
 
-        // Save new podflow
+        
         public override async Task SparaPoddflodeAsync(Poddflöden flode)
         {
-            
             flode.IsSaved = true;
 
             if (flode.SavedAt == null)
@@ -56,7 +56,7 @@ namespace OruMongoDB.Core
                 new ReplaceOptions { IsUpsert = true });
         }
 
-        // 🔹 Save episode
+        
         public override async Task SparaAvsnittAsync(List<PoddAvsnitt> avsnitt)
         {
             if (avsnitt == null || avsnitt.Count == 0)
@@ -65,13 +65,45 @@ namespace OruMongoDB.Core
             await _avsnittCollection.InsertManyAsync(avsnitt);
         }
 
-        // Get all flows from the DB
+        
+        public async Task SparaPoddflodeOchAvsnittAsync(
+            Poddflöden flode,
+            List<PoddAvsnitt> avsnitt)
+        {
+            await _connector.RunTransactionAsync(async session =>
+            {
+                
+                flode.IsSaved = true;
+                if (flode.SavedAt == null)
+                {
+                    flode.SavedAt = DateTime.UtcNow;
+                }
+
+                var filter = Builders<Poddflöden>.Filter.Eq(f => f.rssUrl, flode.rssUrl);
+
+                
+                await _flodeCollection.ReplaceOneAsync(
+                    session,
+                    filter,
+                    flode,
+                    new ReplaceOptions { IsUpsert = true });
+
+               
+                if (avsnitt != null && avsnitt.Count > 0)
+                {
+                    await _avsnittCollection.InsertManyAsync(session, avsnitt);
+                }
+            });
+        }
+
+        
         public IReadOnlyList<Poddflöden> HamtaAllaFloden()
         {
             var filter = Builders<Poddflöden>.Filter.Eq(f => f.IsSaved, true);
             return _flodeCollection.Find(filter).ToList();
         }
 
+        
         public async Task TaBortSparatFlodeAsync(string rssUrl)
         {
             var filter = Builders<Poddflöden>.Filter.Eq(f => f.rssUrl, rssUrl);
