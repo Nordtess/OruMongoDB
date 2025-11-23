@@ -119,6 +119,11 @@ namespace UI
         {
 
         }
+
+        private void txtPodId_TextChanged(object sender, EventArgs e)
+        {
+
+        }
     }
 }
 

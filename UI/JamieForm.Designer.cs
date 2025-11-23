@@ -98,6 +98,7 @@
             listBoxSparade.Name = "listBoxSparade";
             listBoxSparade.Size = new Size(252, 94);
             listBoxSparade.TabIndex = 6;
+            listBoxSparade.SelectedIndexChanged += listBoxSparade_SelectedIndexChanged;
             // 
             // label1
             // 
