@@ -41,6 +41,7 @@
             rtbBeskrivning.Size = new Size(287, 260);
             rtbBeskrivning.TabIndex = 0;
             rtbBeskrivning.Text = "";
+            rtbBeskrivning.TextChanged += rtbBeskrivning_TextChanged;
             // 
             // AvsnittDetaljForm
             // 
