@@ -15,24 +15,39 @@ namespace OruMongoDB.BusinessLayer
         {
             _repo = repo;
         }
-        public async Task CreateCategoryAsync (string namn)
+        public async Task CreateCategoryAsync(string namn)
         {
             if (string.IsNullOrWhiteSpace(namn))
             {
                 throw new Exception("Kategorinamn får inte vara tom.");
             }
 
-                var kategori = new Kategori
-                    {
-                    Namn = namn
-                };
-                await _repo.AddAsync(kategori);
-            }
+            var kategori = new Kategori
+            {
+                Namn = namn
+            };
+            await _repo.AddAsync(kategori);
+        }
+        public async Task UpdateCategoryNameAsync(string categoryId, string newName)
+        {
+            if (string.IsNullOrWhiteSpace(categoryId))
+                throw new Exception("Kategori-ID får inte vara tomt.");
+
+            if (string.IsNullOrWhiteSpace(newName))
+                throw new Exception("Nytt namn får inte vara tomt.");
+
+            await _repo.UpdateCategoryNameAsync(categoryId, newName);
+        }
+
+
+
         public Task<IEnumerable<Kategori>> GetAllCategoriesAsync()
         {
             return _repo.GetAllAsync();
         }
+    }
+}
 
-    }
-    }
+    
+    
 

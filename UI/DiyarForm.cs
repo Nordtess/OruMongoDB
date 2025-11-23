@@ -75,5 +75,48 @@ namespace UI
         {
 
         }
+        private async void btnEditCategoryName_Click(object sender, EventArgs e)
+        {
+            string id = txtEditCategoryId.Text.Trim();
+            string newName = txtEditCategoryName.Text.Trim();
+
+            try
+            {
+                await _categoryService.UpdateCategoryNameAsync(id, newName);
+                MessageBox.Show("Kategorin har uppdaterats!");
+
+                await LoadCategoriesAsync();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Fel: " + ex.Message);
+            }
+        }
+        private async void btnShowPodsByCategory_Click(object sender, EventArgs e)
+        {
+            if (lstCategories.SelectedItem == null)
+            {
+                MessageBox.Show("Välj en kategori i listan.");
+                return;
+            }
+
+            string selected = lstCategories.SelectedItem.ToString();
+            string categoryId = selected.Split('-')[0].Trim();
+
+            var repo = new PoddflodeRepository(MongoConnector.Instance.GetDatabase());
+            var allPods = await repo.GetAllAsync();
+
+            lstCategoryPods.Items.Clear();
+
+            foreach (var pod in allPods)
+            {
+                if (pod.categoryId == categoryId)
+                    lstCategoryPods.Items.Add($"{pod.displayName} ({pod.rssUrl})");
+            }
+
+            if (lstCategoryPods.Items.Count == 0)
+                lstCategoryPods.Items.Add("Inga poddar i denna kategori.");
+        }
+
     }
 }

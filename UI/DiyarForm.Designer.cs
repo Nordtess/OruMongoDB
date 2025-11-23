@@ -12,6 +12,12 @@
         private System.Windows.Forms.TextBox txtPoddId;
         private System.Windows.Forms.TextBox txtCategoryId;
         private System.Windows.Forms.Button btnSetCategory;
+        private TextBox txtEditCategoryId;
+        private TextBox txtEditCategoryName;
+        private Button btnEditCategoryName;
+        private ListBox lstCategoryPods;
+        private Button btnShowPodsByCategory;
+
 
 
         protected override void Dispose(bool disposing)
@@ -93,10 +99,49 @@
             btnSetCategory.TabIndex = 2;
             btnSetCategory.Text = "Sätt kategori på podd";
             btnSetCategory.Click += btnSetCategory_Click;
+
+            // txtEditCategoryId
+            txtEditCategoryId = new TextBox();
+            txtEditCategoryId.Location = new Point(300, 250);
+            txtEditCategoryId.Size = new Size(260, 23);
+            txtEditCategoryId.PlaceholderText = "Kategori ID att ändra";
+
+            // txtEditCategoryName
+            txtEditCategoryName = new TextBox();
+            txtEditCategoryName.Location = new Point(300, 280);
+            txtEditCategoryName.Size = new Size(260, 23);
+            txtEditCategoryName.PlaceholderText = "Nytt kategorinamn";
+
+            // btnEditCategoryName
+            btnEditCategoryName = new Button();
+            btnEditCategoryName.Location = new Point(300, 310);
+            btnEditCategoryName.Size = new Size(260, 40);
+            btnEditCategoryName.Text = "Ändra kategorinamn";
+            btnEditCategoryName.Click += btnEditCategoryName_Click;
+
+            // lstCategoryPods
+            lstCategoryPods = new ListBox();
+            lstCategoryPods.Location = new Point(300, 360);
+            lstCategoryPods.Size = new Size(260, 200);
+
+            // btnShowPodsByCategory
+            btnShowPodsByCategory = new Button();
+            btnShowPodsByCategory.Location = new Point(300, 570);
+            btnShowPodsByCategory.Size = new Size(260, 40);
+            btnShowPodsByCategory.Text = "Visa poddar för kategori";
+            btnShowPodsByCategory.Click += btnShowPodsByCategory_Click;
+
+            // Add controls
+            Controls.Add(txtEditCategoryId);
+            Controls.Add(txtEditCategoryName);
+            Controls.Add(btnEditCategoryName);
+            Controls.Add(lstCategoryPods);
+            Controls.Add(btnShowPodsByCategory);
+
             // 
             // DiyarForm
             // 
-            ClientSize = new Size(600, 300);
+            ClientSize = new Size(650, 650);
             Controls.Add(txtPoddId);
             Controls.Add(txtCategoryId);
             Controls.Add(btnSetCategory);
