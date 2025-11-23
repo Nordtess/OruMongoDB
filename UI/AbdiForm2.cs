@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Windows.Forms;
 using OruMongoDB.BusinessLayer;
@@ -34,7 +35,6 @@ namespace UI
             var avsnittRepo = new PoddAvsnittRepository(db);
             var rssParser = new RssParser();
 
-
             _poddService = new PoddService(poddRepo, avsnittRepo, rssParser, connector);
 
             // Jamie-service för att läsa direkt från MongoDB
@@ -46,17 +46,15 @@ namespace UI
 
             cmbKalla.SelectedIndex = 0; // default = Internet
         }
+
         private void cmbKalla_SelectedIndexChanged(object sender, EventArgs e)
         {
-
             if (cmbKalla.SelectedIndex == 0)
             {
                 // Internet-läge
                 tbUrl.Enabled = true;
-                linkLabel1.Visible = false;
-                tbUrl.Enabled = true;
-                tbUrl.Text = "https://anchor.fm/s/d49ab0d0/podcast/rss";
                 linkLabel1.Visible = true;
+                tbUrl.Text = "https://anchor.fm/s/d49ab0d0/podcast/rss";
 
                 listboxFlodenDb.Enabled = false;
                 listboxFlodenDb.DataSource = null;
@@ -67,23 +65,10 @@ namespace UI
                 // MongoDB-läge
                 tbUrl.Enabled = false;
                 linkLabel1.Visible = false;
-                tbUrl.Enabled = false;
                 listboxFlodenDb.Enabled = true;
-                LaddaSparadeFlodenFranMongo();  // 
+                LaddaSparadeFlodenFranMongo();
             }
         }
-        private void cmbKalla_SelectedIndexChanged(object sender, EventArgs e)
-        {
-
-            if (cmbKalla.SelectedIndex == 0)
-            {
-                // Internet-läge
-                tbUrl.Enabled = true;
-                linkLabel1.Visible = false;
-                tbUrl.Enabled = true;
-                tbUrl.Text = "https://anchor.fm/s/d49ab0d0/podcast/rss";
-                linkLabel1.Visible = true;
-
 
         private void LaddaSparadeFlodenFranMongo()
         {
@@ -126,7 +111,6 @@ namespace UI
 
                 if (cmbKalla.SelectedIndex == 0)
                 {
-
                     var rssUrl = tbUrl.Text.Trim();
                     if (string.IsNullOrWhiteSpace(rssUrl))
                     {
@@ -139,7 +123,6 @@ namespace UI
                 }
                 else
                 {
-
                     if (listboxFlodenDb.SelectedItem is not Poddflöden valtFlode)
                     {
                         MessageBox.Show("Välj först ett sparat poddflöde i listan till höger.");
@@ -150,7 +133,6 @@ namespace UI
                     var result = await _jamieService.HamtaPoddflodeFranUrlAsync(valtFlode.rssUrl);
                     _allaAvsnitt = result.Avsnitt ?? new List<PoddAvsnitt>();
                 }
-
 
                 foreach (var avsnitt in _allaAvsnitt)
                 {
@@ -186,18 +168,15 @@ namespace UI
                 $"{avsnitt.description}";
         }
 
-
         private void listboxAvsnitt1_DoubleClick(object sender, EventArgs e)
         {
             if (listboxAvsnitt1.SelectedItem is not PoddAvsnitt avsnitt)
                 return;
 
-            var text =
-
-            $"{avsnitt.description}";
-
+            var text = $"{avsnitt.description}";
             MessageBox.Show(text, "Avsnittsdetaljer", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
         }
+
         private void visabeskrivning_TextChanged(object sender, EventArgs e)
         {
             // inget behöver göras här – eventet finns bara kopplat
@@ -205,7 +184,7 @@ namespace UI
 
         private void tbUrl_TextChanged(object sender, EventArgs e)
         {
-
+            // optional: validate URL/local input
         }
 
         private void linkLabel1_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
@@ -215,7 +194,7 @@ namespace UI
 
         private void AbdiForm2_Load(object sender, EventArgs e)
         {
-
+            // form load actions (if any)
         }
 
         private void linkLabel1_LinkClicked_1(object sender, LinkLabelLinkClickedEventArgs e)
