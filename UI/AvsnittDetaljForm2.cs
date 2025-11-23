@@ -20,10 +20,5 @@ namespace UI
             lblDatum.Text = _avsnitt.publishDate ?? "Okänt datum";
             rtbBeskrivning.Text = _avsnitt.description ?? "Ingen beskrivning";
         }
-
-        private void rtbBeskrivning_TextChanged(object sender, EventArgs e)
-        {
-
-        }
     }
 }

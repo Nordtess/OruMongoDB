@@ -18,14 +18,14 @@ namespace UI
             InitializeComponent();
         }
 
-
+        
         private async void buttonHamta_Click(object sender, EventArgs e)
         {
             try
             {
                 string url = textBoxUrl.Text.Trim();
 
-
+                
                 if (string.IsNullOrWhiteSpace(url))
                 {
                     MessageBox.Show("Skriv in en RSS-URL först!",
@@ -33,7 +33,7 @@ namespace UI
                     return;
                 }
 
-
+                
                 var result = await _service.HamtaPoddflodeFranUrlAsync(url);
 
                 _currentFlode = result.Flode;
@@ -61,7 +61,7 @@ namespace UI
             }
         }
 
-
+        
         private void listBoxAvsnitt_SelectedIndexChanged(object sender, EventArgs e)
         {
             if (listBoxAvsnitt.SelectedIndex < 0 || _currentAvsnitt == null)
@@ -75,7 +75,7 @@ namespace UI
                 $"{av.description}";
         }
 
-
+        
         private async void buttonSpara_Click(object sender, EventArgs e)
         {
             try
@@ -94,10 +94,10 @@ namespace UI
                     return;
                 }
 
-
+                
                 await _service.SparaPoddflodeAsync(_currentFlode);
 
-
+                
                 _currentFlode.IsSaved = true;
                 _currentFlode.SavedAt = DateTime.UtcNow;
 
@@ -116,7 +116,7 @@ namespace UI
             }
         }
 
-
+        
         private void buttonVisaSparade_Click(object sender, EventArgs e)
         {
             try
@@ -143,7 +143,7 @@ namespace UI
             }
         }
 
-
+        
         private async void btnTaBort_Click(object sender, EventArgs e)
         {
             try
@@ -157,7 +157,7 @@ namespace UI
 
                 string selected = listBoxSparade.SelectedItem.ToString() ?? string.Empty;
 
-
+                
                 if (!selected.Contains("(") || !selected.Contains(")"))
                 {
                     MessageBox.Show("Det finns inget riktigt poddflöde att ta bort.",
@@ -165,13 +165,13 @@ namespace UI
                     return;
                 }
 
-
+                
                 string rssUrl = selected.Substring(selected.IndexOf("(") + 1).TrimEnd(')');
 
-
+                
                 await _service.TaBortSparatFlodeAsync(rssUrl);
 
-
+                
                 if (_currentFlode != null && _currentFlode.rssUrl == rssUrl)
                 {
                     _currentFlode.IsSaved = false;
@@ -181,7 +181,7 @@ namespace UI
                 MessageBox.Show("Poddflödet har tagits bort från ditt register.",
                     "Klart", MessageBoxButtons.OK, MessageBoxIcon.Information);
 
-
+                
                 buttonVisaSparade_Click(null, null);
             }
             catch (ValidationException vex)
@@ -196,7 +196,7 @@ namespace UI
             }
         }
 
-
+        
         private void JamieForm_Load(object sender, EventArgs e)
         {
         }
@@ -223,11 +223,6 @@ namespace UI
         {
             Clipboard.SetText(linkLabel2.Text);
             MessageBox.Show("Kopierat till urklipp!");
-        }
-
-        private void listBoxSparade_SelectedIndexChanged(object sender, EventArgs e)
-        {
-
         }
     }
 }
