@@ -43,7 +43,7 @@ namespace UI
             // Fyll comboboxen med källor
             cmbKalla.Items.Add("Internet (RSS-URL)");
             cmbKalla.Items.Add("MongoDB (sparade flöden)");
-  
+
             cmbKalla.SelectedIndex = 0; // default = Internet
         }
         private void cmbKalla_SelectedIndexChanged(object sender, EventArgs e)
@@ -72,7 +72,18 @@ namespace UI
                 LaddaSparadeFlodenFranMongo();  // 
             }
         }
-    
+        private void cmbKalla_SelectedIndexChanged(object sender, EventArgs e)
+        {
+
+            if (cmbKalla.SelectedIndex == 0)
+            {
+                // Internet-läge
+                tbUrl.Enabled = true;
+                linkLabel1.Visible = false;
+                tbUrl.Enabled = true;
+                tbUrl.Text = "https://anchor.fm/s/d49ab0d0/podcast/rss";
+                linkLabel1.Visible = true;
+
 
         private void LaddaSparadeFlodenFranMongo()
         {
@@ -216,3 +227,9 @@ namespace UI
         }
     }
 }
+
+
+
+
+
+

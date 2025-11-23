@@ -1,4 +1,5 @@
-﻿namespace UI
+﻿
+namespace UI
 {
     partial class AbdiForm2
     {
