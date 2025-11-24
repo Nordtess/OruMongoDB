@@ -465,9 +465,9 @@ namespace UI
             // 
             pictureBox1.Cursor = Cursors.Hand;
             pictureBox1.Image = Properties.Resources.orebro_logo_128px;
-            pictureBox1.Location = new Point(1050, 12);
+            pictureBox1.Location = new Point(1030, 12);
             pictureBox1.Name = "pictureBox1";
-            pictureBox1.Size = new Size(120, 56);
+            pictureBox1.Size = new Size(150, 75);
             pictureBox1.SizeMode = PictureBoxSizeMode.Zoom;
             pictureBox1.TabIndex = 0;
             pictureBox1.TabStop = false;
