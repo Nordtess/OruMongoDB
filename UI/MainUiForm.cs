@@ -457,6 +457,112 @@ namespace UI
             }
         }
 
+        // =============================
+        // CATEGORY MANAGEMENT
+        // =============================
+
+        private async void btnCreateCategory_Click(object sender, EventArgs e)
+        {
+            var name = txtNewCategoryName.Text.Trim();
+
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                MessageBox.Show("Please enter a category name.",
+                    "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            try
+            {
+                await _categoryService.CreateCategoryAsync(name);
+                MessageBox.Show("Category created.",
+                    "Done", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                Log($"Created category '{name}'.");
+
+                txtNewCategoryName.Clear();
+                await LoadCategoriesAsync();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Error while creating category: " + ex.Message,
+                    "Technical error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                Log("Error while creating category: " + ex);
+            }
+        }
+
+        private async void btnRenameCategory_Click(object sender, EventArgs e)
+        {
+            if (cmbCategoryFilter.SelectedItem is not Kategori selectedCat)
+            {
+                MessageBox.Show("Please select a category to rename (not 'All categories').",
+                    "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            var newName = txtEditCategoryName.Text.Trim();
+            if (string.IsNullOrWhiteSpace(newName))
+            {
+                MessageBox.Show("Please enter a new name for the selected category.",
+                    "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            try
+            {
+                await _categoryService.UpdateCategoryNameAsync(selectedCat.Id, newName);
+                MessageBox.Show("Category name updated.",
+                    "Done", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                Log($"Renamed category '{selectedCat.Namn}' to '{newName}'.");
+
+                await LoadCategoriesAsync();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Error while renaming category: " + ex.Message,
+                    "Technical error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                Log("Error while renaming category: " + ex);
+            }
+        }
+
+        private async void btnDeleteCategory_Click(object sender, EventArgs e)
+        {
+            if (cmbCategoryFilter.SelectedItem is not Kategori selectedCat)
+            {
+                MessageBox.Show("Please select a category to delete (not 'All categories').",
+                    "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            var result = MessageBox.Show(
+                $"This will delete the category '{selectedCat.Namn}'.\r\n" +
+                "Podcasts will no longer be linked to this category.\r\n\r\n" +
+                "Are you sure?",
+                "Confirm category deletion",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Warning);
+
+            if (result == DialogResult.No)
+                return;
+
+            try
+            {
+                // Alex' service for deleting a category
+                await _alexService.RaderaKategoriAsync(selectedCat.Id);
+                MessageBox.Show("Category deleted.",
+                    "Done", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                Log($"Deleted category '{selectedCat.Namn}'.");
+
+                await LoadCategoriesAsync();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Error while deleting category: " + ex.Message,
+                    "Technical error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                Log("Error while deleting category: " + ex);
+            }
+        }
+
+
         // ============================================================
         // RIGHT: EPISODE LIST + DETAILS
         // ============================================================
