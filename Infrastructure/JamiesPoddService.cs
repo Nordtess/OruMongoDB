@@ -55,7 +55,7 @@ namespace OruMongoDB.Core
                 throw new ArgumentNullException(nameof(flode));
 
             PoddValidator.ValidateRssUrl(flode.rssUrl);
-            PoddValidator.ValidatePoddNamn(flode.displayName);
+            PoddValidator.ValidateFeedName(flode.displayName);
 
             flode.IsSaved = true;
 
@@ -90,7 +90,7 @@ namespace OruMongoDB.Core
                 throw new ArgumentNullException(nameof(flode));
 
             PoddValidator.ValidateRssUrl(flode.rssUrl);
-            PoddValidator.ValidatePoddNamn(flode.displayName);
+            PoddValidator.ValidateFeedName(flode.displayName);
 
             await _connector.RunTransactionAsync(async session =>
             {

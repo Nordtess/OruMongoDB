@@ -10,6 +10,7 @@ using OruMongoDB.BusinessLayer.Rss;
 using OruMongoDB.Core;
 using OruMongoDB.Domain;
 using OruMongoDB.Infrastructure;
+using OruMongoDB.Core.Validation; 
 
 namespace UI
 {
@@ -77,30 +78,32 @@ namespace UI
                     var dbResult = await _jamieService.HamtaPoddflodeFranUrlAsync(url);
                     _currentFlode = dbResult.Flode;
                     _currentEpisodes = dbResult.Avsnitt ?? new List<PoddAvsnitt>();
+                    _currentFlode.IsSaved = true; // mark as already persisted
                     txtCustomName.Text = _currentFlode.displayName;
                     SyncFeedCategoryFromFeed(_currentFlode);
                     FillEpisodesGrid(_currentEpisodes);
-                    Log($"Loaded {_currentEpisodes.Count} episodes for '{_currentFlode.displayName}' from MongoDB.");
+                    Log($"Loaded {_currentEpisodes.Count} episodes for '{_currentFlode.displayName}' from database.");
                     MessageBox.Show(
-                        $"Loaded {_currentEpisodes.Count} episodes from '{_currentFlode.displayName}' (database).",
-                        "Done", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        $"Loaded {_currentEpisodes.Count} episodes for '{_currentFlode.displayName}'.",
+                        "Loaded", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     return;
                 }
                 catch (ValidationException vex)
                 {
-                    Log("No feed found in MongoDB. Internet fallback. " + vex.Message);
+                    Log("Not found in DB. Falling back to internet. " + vex.Message);
                 }
 
                 Log($"Fetching feed from Internet: {url}");
                 var netResult = await _poddService.FetchPoddFeedAsync(url);
                 _currentFlode = netResult.poddflode;
                 _currentEpisodes = netResult.avsnitt ?? new List<PoddAvsnitt>();
+                _currentFlode.IsSaved = false;
                 txtCustomName.Text = _currentFlode.displayName;
                 if (cmbFeedCategory.Items.Count > 0) cmbFeedCategory.SelectedIndex = 0;
                 FillEpisodesGrid(_currentEpisodes);
                 MessageBox.Show(
-                    $"Fetched {_currentEpisodes.Count} episodes from '{_currentFlode.displayName}' (Internet).",
-                    "Done", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    $"Loaded {_currentEpisodes.Count} episodes for '{_currentFlode.displayName}'.",
+                    "Loaded", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 Log($"Loaded {_currentEpisodes.Count} episodes for '{_currentFlode.displayName}' from Internet.");
             }
             catch (ValidationException vex)
@@ -122,21 +125,16 @@ namespace UI
             try
             {
                 if (_currentFlode == null)
-                {
-                    MessageBox.Show("No feed has been loaded yet.", "Validation",
-                        MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    return;
-                }
+                    throw new ValidationException("No feed has been loaded yet.");
+
+                PoddValidator.EnsureFeedNotAlreadySaved(_currentFlode);
+
                 if (_currentEpisodes.Count == 0)
-                {
-                    MessageBox.Show("There are no episodes to save.", "Validation",
-                        MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    return;
-                }
+                    throw new ValidationException("There are no episodes to save.");
 
                 var customName = txtCustomName.Text.Trim();
-                if (!string.IsNullOrWhiteSpace(customName))
-                    _currentFlode.displayName = customName;
+                PoddValidator.ValidateFeedName(customName);
+                _currentFlode.displayName = customName;
 
                 foreach (var ep in _currentEpisodes)
                     ep.feedId = _currentFlode.Id!;
@@ -262,32 +260,29 @@ namespace UI
 
         private async void btnSetCategory_Click(object? sender, EventArgs e)
         {
-            if (_currentFlode == null)
-            {
-                MessageBox.Show("Select a feed first.", "Validation",
-                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
-            }
-            if (cmbFeedCategory.SelectedItem is not Kategori selectedCategory)
-            {
-                MessageBox.Show("Select a category in feed category.", "Validation",
-                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
-            }
-            if (_currentFlode.categoryId == selectedCategory.Id)
-            {
-                MessageBox.Show("Feed already has this category.", "Validation",
-                    MessageBoxButtons.OK, MessageBoxIcon.Information);
-                return;
-            }
             try
             {
-                await _poddService.AssignCategoryAsync(_currentFlode.Id!, selectedCategory.Id);
-                _currentFlode.categoryId = selectedCategory.Id;
-                var match = _allSavedFeeds.FirstOrDefault(f => f.Id == _currentFlode.Id);
+                PoddValidator.EnsureFeedSelected(_currentFlode);
+                var feed = _currentFlode!;
+                PoddValidator.EnsureCategorySelected(cmbFeedCategory.SelectedItem as Kategori, "Feed category");
+                var selectedCategory = (Kategori)cmbFeedCategory.SelectedItem!;
+                PoddValidator.EnsureCategoryAssignmentAllowed(feed, selectedCategory);
+
+                await _poddService.AssignCategoryAsync(feed.Id!, selectedCategory.Id);
+                feed.categoryId = selectedCategory.Id;
+                var match = _allSavedFeeds.FirstOrDefault(f => f.Id == feed.Id);
                 if (match != null) match.categoryId = selectedCategory.Id;
-                Log($"Set category '{selectedCategory.Namn}' for '{_currentFlode.displayName}'.");
+
+                MessageBox.Show($"Category '{selectedCategory.Namn}' assigned.", "Done",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                Log($"Set category '{selectedCategory.Namn}' for '{feed.displayName}'.");
                 ApplyCategoryFilter();
+            }
+            catch (ValidationException vex)
+            {
+                MessageBox.Show(vex.Message, "Validation",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                Log("Validation (set category): " + vex.Message);
             }
             catch (Exception ex)
             {
@@ -299,31 +294,32 @@ namespace UI
 
         private async void btnRemoveCategory_Click(object? sender, EventArgs e)
         {
-            if (_currentFlode == null)
-            {
-                MessageBox.Show("Select a feed first.", "Validation",
-                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
-            }
-            if (string.IsNullOrWhiteSpace(_currentFlode.categoryId))
-            {
-                MessageBox.Show("Feed has no category.", "Validation",
-                    MessageBoxButtons.OK, MessageBoxIcon.Information);
-                return;
-            }
-            var confirm = MessageBox.Show("Remove category from this feed?", "Confirm",
-                MessageBoxButtons.YesNo, MessageBoxIcon.Question);
-            if (confirm == DialogResult.No) return;
-
             try
             {
+                PoddValidator.EnsureFeedSelected(_currentFlode);
+                if (string.IsNullOrWhiteSpace(_currentFlode!.categoryId))
+                    throw new ValidationException("Feed has no category to remove.");
+
+                var confirm = MessageBox.Show("Remove category from this feed?", "Confirm",
+                    MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+                if (confirm == DialogResult.No) return;
+
                 await _poddService.AssignCategoryAsync(_currentFlode.Id!, string.Empty);
                 _currentFlode.categoryId = string.Empty;
                 var match = _allSavedFeeds.FirstOrDefault(f => f.Id == _currentFlode.Id);
                 if (match != null) match.categoryId = string.Empty;
                 if (cmbFeedCategory.Items.Count > 0) cmbFeedCategory.SelectedIndex = 0;
+
+                MessageBox.Show("Category removed from feed.", "Done",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
                 Log($"Removed category from '{_currentFlode.displayName}'.");
                 ApplyCategoryFilter();
+            }
+            catch (ValidationException vex)
+            {
+                MessageBox.Show(vex.Message, "Validation",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                Log("Validation (remove category): " + vex.Message);
             }
             catch (Exception ex)
             {
@@ -373,34 +369,28 @@ namespace UI
 
         private async void btnRename_Click(object? sender, EventArgs e)
         {
-            if (lstPodcasts.SelectedItem is not Poddflöden selected)
-            {
-                MessageBox.Show("Select a feed first.", "Validation",
-                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
-            }
-            var newName = txtCustomName.Text.Trim();
-            if (string.IsNullOrWhiteSpace(newName))
-            {
-                MessageBox.Show("Enter a new name.", "Validation",
-                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
-            }
-            if (string.Equals(newName, selected.displayName, StringComparison.Ordinal))
-            {
-                MessageBox.Show("Name unchanged.", "Validation",
-                    MessageBoxButtons.OK, MessageBoxIcon.Information);
-                return;
-            }
             try
             {
+                if (lstPodcasts.SelectedItem is not Poddflöden selected)
+                    throw new ValidationException("Select a feed first.");
+
+                var newName = txtCustomName.Text.Trim();
+                PoddValidator.EnsureFeedRenameValid(selected, newName);
+
                 await _alexService.AndraNamnPaPoddflodeAsync(selected.Id!, newName);
                 selected.displayName = newName;
                 lstPodcasts.DisplayMember = "";
                 lstPodcasts.DisplayMember = "displayName";
+
                 MessageBox.Show("Feed renamed.", "Done",
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
                 Log($"Renamed feed '{selected.Id}' to '{newName}'.");
+            }
+            catch (ValidationException vex)
+            {
+                MessageBox.Show(vex.Message, "Validation",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                Log("Validation (rename feed): " + vex.Message);
             }
             catch (Exception ex)
             {
@@ -412,27 +402,26 @@ namespace UI
 
         private async void btnCreateCategory_Click(object? sender, EventArgs e)
         {
-            var name = txtNewCategoryName.Text.Trim();
-            if (string.IsNullOrWhiteSpace(name))
-            {
-                MessageBox.Show("Enter category name.", "Validation",
-                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
-            }
-            if (_allCategories.Any(c => c.Namn.Equals(name, StringComparison.OrdinalIgnoreCase)))
-            {
-                MessageBox.Show("Category exists.", "Validation",
-                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
-            }
             try
             {
+                var name = txtNewCategoryName.Text.Trim();
+                PoddValidator.ValidateCategoryName(name);
+
+                if (_allCategories.Any(c => c.Namn.Equals(name, StringComparison.OrdinalIgnoreCase)))
+                    throw new ValidationException($"Category '{name}' already exists.");
+
                 await _categoryService.CreateCategoryAsync(name);
                 Log($"Created category '{name}'.");
                 txtNewCategoryName.Clear();
                 await LoadCategoriesAsync();
                 MessageBox.Show("Category created.", "Done",
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            catch (ValidationException vex)
+            {
+                MessageBox.Show(vex.Message, "Validation",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                Log("Validation (create category): " + vex.Message);
             }
             catch (Exception ex)
             {
@@ -444,44 +433,31 @@ namespace UI
 
         private async void btnRenameCategory_Click(object? sender, EventArgs e)
         {
-            if (cmbCategoryEdit.SelectedItem is not Kategori selectedCat || selectedCat.Id == null)
-            {
-                MessageBox.Show("Select a category to rename.", "Validation",
-                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
-            }
-            var newName = txtEditCategoryName.Text.Trim();
-            if (string.IsNullOrWhiteSpace(newName))
-            {
-                MessageBox.Show("Enter new category name.", "Validation",
-                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
-            }
-            if (string.Equals(newName, selectedCat.Namn, StringComparison.Ordinal))
-            {
-                MessageBox.Show("Name unchanged.", "Validation",
-                    MessageBoxButtons.OK, MessageBoxIcon.Information);
-                return;
-            }
-            if (_allCategories.Any(c => c.Namn.Equals(newName, StringComparison.OrdinalIgnoreCase)))
-            {
-                MessageBox.Show("Category already exists.", "Validation",
-                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
-            }
-            var confirm = MessageBox.Show(
-                $"Rename '{selectedCat.Namn}' to '{newName}'?",
-                "Confirm rename", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
-            if (confirm == DialogResult.No) return;
-
             try
             {
+                if (cmbCategoryEdit.SelectedItem is not Kategori selectedCat)
+                    throw new ValidationException("Select a category to rename.");
+
+                var newName = txtEditCategoryName.Text.Trim();
+                PoddValidator.EnsureCategoryRenameValid(selectedCat, newName, _allCategories);
+
+                var confirm = MessageBox.Show(
+                    $"Rename '{selectedCat.Namn}' to '{newName}'?",
+                    "Confirm rename", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+                if (confirm == DialogResult.No) return;
+
                 await _categoryService.UpdateCategoryNameAsync(selectedCat.Id, newName);
                 Log($"Renamed category '{selectedCat.Namn}' to '{newName}'.");
                 txtEditCategoryName.Clear();
                 await LoadCategoriesAsync();
                 MessageBox.Show("Category renamed.", "Done",
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            catch (ValidationException vex)
+            {
+                MessageBox.Show(vex.Message, "Validation",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                Log("Validation (rename category): " + vex.Message);
             }
             catch (Exception ex)
             {
@@ -493,25 +469,28 @@ namespace UI
 
         private async void btnDeleteCategory_Click(object? sender, EventArgs e)
         {
-            if (cmbCategoryEdit.SelectedItem is not Kategori selectedCat)
-            {
-                MessageBox.Show("Select a category to delete.", "Validation",
-                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
-            }
-            var confirm = MessageBox.Show(
-                $"Delete category '{selectedCat.Namn}'?",
-                "Confirm deletion", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
-            if (confirm == DialogResult.No) return;
-
             try
             {
+                if (cmbCategoryEdit.SelectedItem is not Kategori selectedCat)
+                    throw new ValidationException("Select a category to delete.");
+
+                var confirm = MessageBox.Show(
+                    $"Delete category '{selectedCat.Namn}'?",
+                    "Confirm deletion", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+                if (confirm == DialogResult.No) return;
+
                 await _alexService.RaderaKategoriAsync(selectedCat.Id);
                 Log($"Deleted category '{selectedCat.Namn}'.");
                 txtEditCategoryName.Clear();
                 await LoadCategoriesAsync();
                 MessageBox.Show("Category deleted.", "Done",
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            catch (ValidationException vex)
+            {
+                MessageBox.Show(vex.Message, "Validation",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                Log("Validation (delete category): " + vex.Message);
             }
             catch (Exception ex)
             {
