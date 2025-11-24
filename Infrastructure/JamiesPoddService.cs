@@ -127,24 +127,34 @@ namespace OruMongoDB.Core
             return _flodeCollection.Find(filter).ToList();
         }
 
-        
+
         public async Task TaBortSparatFlodeAsync(string rssUrl)
         {
             PoddValidator.ValidateRssUrl(rssUrl);
 
-            var filter = Builders<Poddflöden>.Filter.Eq(f => f.rssUrl, rssUrl);
+            
+            var flode = await _flodeCollection
+                .Find(f => f.rssUrl == rssUrl)
+                .FirstOrDefaultAsync();
 
-            var update = Builders<Poddflöden>.Update
-                .Set(f => f.IsSaved, false)
-                .Set(f => f.SavedAt, (DateTime?)null);
-
-            var result = await _flodeCollection.UpdateOneAsync(filter, update);
-
-            if (result.MatchedCount == 0)
+            if (flode == null)
             {
-                throw new ValidationException($"Hittade inget poddflöde med RSS-URL: {rssUrl}");
+                throw new ValidationException(
+                    $"Hittade inget poddflöde med RSS-URL: {rssUrl}");
             }
+
+            await _connector.RunTransactionAsync(async session =>
+            {
+                
+                var feedFilter = Builders<Poddflöden>.Filter.Eq(f => f.Id, flode.Id);
+                await _flodeCollection.DeleteOneAsync(session, feedFilter);
+
+                
+                var avsnittFilter = Builders<PoddAvsnitt>.Filter.Eq(a => a.feedId, flode.Id);
+                await _avsnittCollection.DeleteManyAsync(session, avsnittFilter);
+            });
         }
+
 
 
         public async Task TaBortPoddflodeOchAvsnittAsync(string rssUrl)
@@ -153,7 +163,7 @@ namespace OruMongoDB.Core
 
             await _connector.RunTransactionAsync(async session =>
             {
-                // 1) Hämta flödet via rssUrl
+                
                 var flodeFilter = Builders<Poddflöden>.Filter.Eq(f => f.rssUrl, rssUrl);
                 var flode = await _flodeCollection
                     .Find(session, flodeFilter)
@@ -164,11 +174,11 @@ namespace OruMongoDB.Core
                     throw new ValidationException($"Hittade inget poddflöde med RSS-URL: {rssUrl}");
                 }
 
-                // 2) Ta bort alla avsnitt kopplade till detta flöde
+                
                 var avsnittFilter = Builders<PoddAvsnitt>.Filter.Eq(a => a.feedId, flode.Id);
                 await _avsnittCollection.DeleteManyAsync(session, avsnittFilter);
 
-                // 3) Ta bort själva flödet
+                
                 await _flodeCollection.DeleteOneAsync(session, flodeFilter);
             });
         }

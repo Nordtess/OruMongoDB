@@ -1,14 +1,15 @@
-﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
-using System.Linq;
-using System.Threading.Tasks;
-using System.Windows.Forms;
+﻿using MongoDB.Driver;
 using OruMongoDB.BusinessLayer;
 using OruMongoDB.BusinessLayer.Rss;
 using OruMongoDB.Core;
 using OruMongoDB.Domain;
 using OruMongoDB.Infrastructure;
+using System;
+using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
+using System.Linq;
+using System.Threading.Tasks;
+using System.Windows.Forms;
 
 namespace UI
 {
@@ -494,15 +495,14 @@ namespace UI
 
             try
             {
-                // Tom sträng = ingen kategori
-                await _poddService.AssignCategoryAsync(_currentFlode.Id, string.Empty);
+                await ClearCategoryForFeedAsync(_currentFlode);
 
                 _currentFlode.categoryId = string.Empty;
                 var match = _allSavedFeeds.FirstOrDefault(f => f.Id == _currentFlode.Id);
                 if (match != null) match.categoryId = string.Empty;
 
                 if (cmbFeedCategory.Items.Count > 0)
-                    cmbFeedCategory.SelectedIndex = 0;
+                    cmbFeedCategory.SelectedIndex = 0; // "(no category)"
 
                 MessageBox.Show(
                     "Category has been removed from this feed.",
@@ -524,6 +524,7 @@ namespace UI
                 Log("Error while removing category: " + ex);
             }
         }
+
 
         // ============================================================
         // FEED: Remove / Rename
@@ -790,6 +791,21 @@ namespace UI
                 Log("Error while deleting category: " + ex);
             }
         }
+
+        private async Task ClearCategoryForFeedAsync(Poddflöden feed)
+        {
+            var connector = MongoConnector.Instance;
+            var db = connector.GetDatabase();
+            var collection = db.GetCollection<Poddflöden>("Poddflöden");
+
+            await connector.RunTransactionAsync(async session =>
+            {
+                var filter = Builders<Poddflöden>.Filter.Eq(f => f.Id, feed.Id);
+                var update = Builders<Poddflöden>.Update.Set(f => f.categoryId, string.Empty);
+                await collection.UpdateOneAsync(session, filter, update);
+            });
+        }
+
 
         // ============================================================
         // EPISODES
