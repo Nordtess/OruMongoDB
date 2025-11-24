@@ -1,53 +1,68 @@
-﻿using OruMongoDB.Domain;
-using OruMongoDB.Infrastructure;
-using System;
+﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
+using OruMongoDB.Domain;
+using OruMongoDB.Infrastructure;
 
 namespace OruMongoDB.BusinessLayer
 {
     public class CategoryService
     {
-        private readonly CategoryRepository _repo;
-        public CategoryService(CategoryRepository repo)
+        private readonly CategoryRepository _categoryRepository;
+
+        public CategoryService(CategoryRepository categoryRepository)
         {
-            _repo = repo;
+            _categoryRepository = categoryRepository;
         }
-        public async Task CreateCategoryAsync(string namn)
+
+        
+        public async Task<IEnumerable<Kategori>> GetAllCategoriesAsync()
         {
-            if (string.IsNullOrWhiteSpace(namn))
+            return await _categoryRepository.GetAllAsync();
+        }
+
+        
+        public async Task CreateCategoryAsync(string name)
+        {
+            if (string.IsNullOrWhiteSpace(name))
+                throw new ValidationException("Category name cannot be empty.");
+
+            var all = await _categoryRepository.GetAllAsync();
+            if (all.Any(c => c.Namn.Equals(name, StringComparison.OrdinalIgnoreCase)))
             {
-                throw new Exception("Kategorinamn får inte vara tom.");
+                throw new ValidationException(
+                    $"Category '{name}' already exists.");
             }
 
-            var kategori = new Kategori
+            var cat = new Kategori
             {
-                Namn = namn
+                Namn = name.Trim()
             };
-            await _repo.AddAsync(kategori);
+
+            await _categoryRepository.InsertAsync(cat);
         }
+
+        
         public async Task UpdateCategoryNameAsync(string categoryId, string newName)
         {
             if (string.IsNullOrWhiteSpace(categoryId))
-                throw new Exception("Kategori-ID får inte vara tomt.");
+                throw new ValidationException("Category ID cannot be empty.");
 
             if (string.IsNullOrWhiteSpace(newName))
-                throw new Exception("Nytt namn får inte vara tomt.");
+                throw new ValidationException("New category name cannot be empty.");
 
-            await _repo.UpdateCategoryNameAsync(categoryId, newName);
+            await _categoryRepository.UpdateCategoryNameAsync(categoryId, newName.Trim());
         }
 
-
-
-        public Task<IEnumerable<Kategori>> GetAllCategoriesAsync()
+        
+        public async Task DeleteCategoryAsync(string categoryId)
         {
-            return _repo.GetAllAsync();
+            if (string.IsNullOrWhiteSpace(categoryId))
+                throw new ValidationException("Category ID cannot be empty.");
+
+            await _categoryRepository.DeleteCategoryAsync(categoryId);
         }
     }
 }
-
-    
-    
-
