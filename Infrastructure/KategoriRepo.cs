@@ -19,9 +19,12 @@ namespace OruMongoDB.Infrastructure
         public async Task UpdateCategoryNameAsync(string categoryId, string newName)
         {
             var filter = Builders<Kategori>.Filter.Eq(c => c.Id, categoryId);
-            var update = Builders<Kategori>.Update.Set(c => c.Namn, newName);
+            var update = Builders<Kategori>.Update
+                .Set(c => c.Namn, newName)
+                .Set("name", newName);
 
             await _collection.UpdateOneAsync(filter, update);
         }
+
     }
 }

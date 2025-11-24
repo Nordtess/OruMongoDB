@@ -14,31 +14,28 @@ namespace UI
 {
     public partial class MainUiForm : Form
     {
-        // === SERVICES / REPOS ===
+        // === SERVICES / REPOS ======================================
 
-        // Jamies service – centralt nav för sparade flöden + hämta via URL
         private readonly JamiesPoddService _jamieService = new JamiesPoddService();
-
-        // Abdis/Diyars Internet/DB-service (bl.a. AssignCategoryAsync, FetchPoddFeedAsync)
         private readonly PoddService _poddService;
-
-        // Diyars kategoritjänst
         private readonly CategoryService _categoryService;
-
-        // Alex krav – t.ex. byta namn på poddflöde, radera kategori
         private readonly AlexKrav _alexService = new AlexKrav();
 
-        // === STATE ===
-        private List<Poddflöden> _allSavedFeeds = new();   // alla sparade poddar från DB
-        private Poddflöden? _currentFlode;                 // flödet som just nu är aktivt
-        private List<PoddAvsnitt> _currentEpisodes = new(); // avsnitt för _currentFlode
-        private List<Kategori> _allCategories = new();     // alla kategorier
+        // === STATE ==================================================
+
+        private List<Poddflöden> _allSavedFeeds = new();
+        private Poddflöden? _currentFlode;
+        private List<PoddAvsnitt> _currentEpisodes = new();
+        private List<Kategori> _allCategories = new();
+
+        // ============================================================
+        // CTOR
+        // ============================================================
 
         public MainUiForm()
         {
             InitializeComponent();
 
-            // Bygg gemensam MongoConnector
             var connector = MongoConnector.Instance;
             var db = connector.GetDatabase();
 
@@ -46,10 +43,7 @@ namespace UI
             var avsnittRepo = new PoddAvsnittRepository(db);
             var rssParser = new RssParser();
 
-            // PoddService används till t.ex. AssignCategoryAsync, FetchPoddFeedAsync
             _poddService = new PoddService(poddRepo, avsnittRepo, rssParser, connector);
-
-            // CategoryService för CRUD på Kategori
             _categoryService = new CategoryService(new CategoryRepository(db));
         }
 
@@ -57,7 +51,7 @@ namespace UI
         // FORM LOAD
         // ============================================================
 
-        private async void MainUiForm_Load(object sender, EventArgs e)
+        private async void MainUiForm_Load(object? sender, EventArgs e)
         {
             try
             {
@@ -68,150 +62,144 @@ namespace UI
             catch (Exception ex)
             {
                 Log("Error on startup: " + ex.Message);
-                MessageBox.Show("Error during startup: " + ex.Message,
-                    "Startup error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show(
+                    "Error during startup: " + ex.Message,
+                    "Startup error",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
             }
         }
 
         // ============================================================
-        // TOP: FETCH VIA RSS + SAVE
+        // TOP: FETCH VIA RSS  (DB först, sedan internet)
         // ============================================================
 
-
-
-        private async void btnFetch_Click(object sender, EventArgs e)
+        private async void btnFetch_Click(object? sender, EventArgs e)
         {
-            string url = txtRssUrl.Text.Trim();
+            var url = txtRssUrl.Text.Trim();
 
             if (string.IsNullOrWhiteSpace(url))
             {
-                MessageBox.Show("Please enter an RSS URL first.",
-                    "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show(
+                    "Please enter an RSS URL first.",
+                    "Validation",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
                 return;
             }
 
             try
             {
-                Poddflöden? dbFlode = null;
-                List<PoddAvsnitt> dbEpisodes = new();
+                _currentFlode = null;
+                _currentEpisodes = new List<PoddAvsnitt>();
+                dgvEpisodes.Rows.Clear();
+                lblEpisodeTitle.Text = "No episodes.";
+                txtDescription.Clear();
+                btnSaveFeed.Enabled = false;
 
-                // ==========================
-                // 1) FÖRSÖK LÄSA FRÅN MONGODB
-                // ==========================
+                // 1) Försök läsa från MongoDB
+                Log($"Trying to load feed from MongoDB for URL: {url}");
                 try
                 {
-                    Log($"Trying to load feed from MongoDB for URL: {url}");
-
                     var dbResult = await _jamieService.HamtaPoddflodeFranUrlAsync(url);
 
-                    dbFlode = dbResult.Flode;
-                    dbEpisodes = dbResult.Avsnitt ?? new List<PoddAvsnitt>();
+                    _currentFlode = dbResult.Flode;
+                    _currentEpisodes = dbResult.Avsnitt ?? new List<PoddAvsnitt>();
 
-                    if (dbEpisodes.Count > 0)
-                    {
-                        // Flöde + avsnitt finns redan i DB → använd dem
-                        _currentFlode = dbFlode;
-                        _currentEpisodes = dbEpisodes;
+                    txtCustomName.Text = _currentFlode.displayName;
+                    SyncFeedCategoryFromFeed(_currentFlode);
+                    FillEpisodesGrid(_currentEpisodes);
 
-                        txtCustomName.Text = _currentFlode.displayName;
-                        FillEpisodesGrid(_currentEpisodes);
+                    Log($"Loaded {_currentEpisodes.Count} episodes for '{_currentFlode.displayName}' from MongoDB.");
+                    MessageBox.Show(
+                        $"Loaded {_currentEpisodes.Count} episodes from '{_currentFlode.displayName}' (database).",
+                        "Done",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Information);
 
-                        // Om IsSaved = true → ingen idé att spara igen
-                        btnSaveFeed.Enabled = !_currentFlode.IsSaved;
-
-                        MessageBox.Show(
-                            $"Loaded {_currentEpisodes.Count} episodes from '{_currentFlode.displayName}' (database).",
-                            "Done", MessageBoxButtons.OK, MessageBoxIcon.Information);
-
-                        Log($"Loaded {_currentEpisodes.Count} episodes for '{_currentFlode.displayName}' from MongoDB.");
-                        return;
-                    }
-
-                    // Flödet finns, men saknar avsnitt i DB
-                    Log($"Feed '{dbFlode.displayName}' found in MongoDB but has 0 episodes. Fetching episodes from Internet…");
+                    // Feed finns redan i DB – men man får gärna spara om den
+                    _currentFlode.IsSaved = true;
+                    btnSaveFeed.Enabled = true;
+                    return;
                 }
-                catch (ValidationException vex) when (
-                    vex.Message.StartsWith("Hittade inget poddflöde i databasen"))
+                catch (ValidationException vex)
                 {
-                    // Flödet finns inte alls i DB → vi går direkt till internet nedan
-                    Log("No matching feed found in MongoDB, fetching from Internet…");
+                    Log("No feed found in MongoDB for that URL. Falling back to internet. Details: " + vex.Message);
                 }
 
-                // ==========================
-                // 2) INTERNET (NYTT ELLER “TOMT” FLÖDE)
-                // ==========================
+                // 2) Fallback: hämta från internet
                 Log($"Fetching feed from Internet: {url}");
 
-                // PoddService.FetchPoddFeedAsync returnerar (Poddflöden poddflode, List<PoddAvsnitt> avsnitt)
-                var (poddflode, avsnitt) = await _poddService.FetchPoddFeedAsync(url);
-                var internetEpisodes = avsnitt ?? new List<PoddAvsnitt>();
+                var netResult = await _poddService.FetchPoddFeedAsync(url);
 
-                if (dbFlode != null)
-                {
-                    // Flödet fanns i DB men utan avsnitt:
-                    // Behåll DB-flödets Id (så feedId matchar rätt dokument)
-                    _currentFlode = dbFlode;
-                    _currentEpisodes = internetEpisodes;
-
-                    foreach (var ep in _currentEpisodes)
-                    {
-                        ep.feedId = _currentFlode.Id!;
-                    }
-                }
-                else
-                {
-                    // Helt nytt flöde – ta allt från internet
-                    _currentFlode = poddflode;
-                    _currentEpisodes = internetEpisodes;
-                }
+                _currentFlode = netResult.poddflode;
+                _currentEpisodes = netResult.avsnitt ?? new List<PoddAvsnitt>();
 
                 txtCustomName.Text = _currentFlode.displayName;
-                FillEpisodesGrid(_currentEpisodes);
 
-                // Nya/in-kompletta flöden är inte sparade → användaren kan spara
-                btnSaveFeed.Enabled = !_currentFlode.IsSaved;
+                if (cmbFeedCategory.Items.Count > 0)
+                    cmbFeedCategory.SelectedIndex = 0; // (no category)
+
+                FillEpisodesGrid(_currentEpisodes);
 
                 MessageBox.Show(
                     $"Fetched {_currentEpisodes.Count} episodes from '{_currentFlode.displayName}' (Internet).",
-                    "Done", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    "Done",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
 
                 Log($"Loaded {_currentEpisodes.Count} episodes for '{_currentFlode.displayName}' from Internet.");
+
+                _currentFlode.IsSaved = false;
+                btnSaveFeed.Enabled = true;
             }
             catch (ValidationException vex)
             {
                 MessageBox.Show(
-    vex.Message,
-    "Validation error",
-    MessageBoxButtons.OK,
-    MessageBoxIcon.Warning);
+                    vex.Message,
+                    "Validation error",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
 
                 Log("Validation error while fetching: " + vex.Message);
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Error while fetching feed: " + ex.Message,
-                    "Technical error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show(
+                    "Error while fetching feed: " + ex.Message,
+                    "Technical error",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+
                 Log("Error while fetching feed: " + ex);
             }
         }
 
+        // ============================================================
+        // SAVE FEED (endast spara flöde + avsnitt)
+        // ============================================================
 
-
-        private async void btnSaveFeed_Click(object sender, EventArgs e)
+        private async void btnSaveFeed_Click(object? sender, EventArgs e)
         {
             try
             {
                 if (_currentFlode == null)
                 {
-                    MessageBox.Show("No feed has been loaded yet.",
-                        "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    MessageBox.Show(
+                        "No feed has been loaded yet.",
+                        "Validation",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning);
                     return;
                 }
 
                 if (_currentEpisodes == null || _currentEpisodes.Count == 0)
                 {
-                    MessageBox.Show("There are no episodes to save for this feed.",
-                        "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    MessageBox.Show(
+                        "There are no episodes to save for this feed.",
+                        "Validation",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning);
                     return;
                 }
 
@@ -222,85 +210,95 @@ namespace UI
                     _currentFlode.displayName = customName;
                 }
 
-                // Säkerställ att alla avsnitt pekar på rätt feedId
+                // Se till att alla avsnitt pekar på rätt feedId
                 foreach (var ep in _currentEpisodes)
                 {
                     ep.feedId = _currentFlode.Id!;
                 }
 
-                // Kategori: om en kategori är vald i comboboxen så sätt den på flödet
-                if (cmbCategoryFilter.SelectedItem is Kategori selectedCategory)
-                {
-                    _currentFlode.categoryId = selectedCategory.Id;
-                }
-
-                // Spara flöde + avsnitt I EN TRANSAKTION
+                // Spara flöde + avsnitt i en transaktion
                 await _jamieService.SparaPoddflodeOchAvsnittAsync(_currentFlode, _currentEpisodes);
 
                 _currentFlode.IsSaved = true;
                 _currentFlode.SavedAt = DateTime.UtcNow;
 
-                MessageBox.Show("Podcast feed and its episodes have been saved to your register.",
-                    "Done", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show(
+                    "Podcast feed and its episodes have been saved in your register.",
+                    "Done",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
 
                 Log($"Saved feed '{_currentFlode.displayName}' and {_currentEpisodes.Count} episodes.");
 
-                // Uppdatera listan med sparade flöden
                 LoadSavedFeeds();
-
-                // eftersom den nu är sparad behöver man inte spara igen direkt
-                btnSaveFeed.Enabled = false;
+                btnSaveFeed.Enabled = true; // man kan spara om
             }
             catch (ValidationException vex)
             {
-                MessageBox.Show(vex.Message, "Validation error",
-                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show(
+                    vex.Message,
+                    "Validation error",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+
                 Log("Validation error while saving: " + vex.Message);
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Error while saving feed: " + ex.Message,
-                    "Technical error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show(
+                    "Error while saving feed: " + ex.Message,
+                    "Technical error",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+
                 Log("Error while saving feed and episodes: " + ex);
             }
         }
 
-
-
         // ============================================================
-        // LEFT: SAVED PODCASTS + CATEGORY FILTER
+        // CATEGORIES: Ladda + sync
         // ============================================================
 
         private async Task LoadCategoriesAsync()
         {
-            // IEnumerable<Kategori> -> List<Kategori>
-            _allCategories = (await _categoryService
-                .GetAllCategoriesAsync())
-                .ToList();
+            _allCategories = (await _categoryService.GetAllCategoriesAsync()).ToList();
 
+            // Rensa alla comboboxar
             cmbCategoryFilter.Items.Clear();
+            cmbFeedCategory.Items.Clear();
+            cmbCategoryEdit.Items.Clear();
+            lstCategoriesRight.Items.Clear();
 
-            // Första valet = "All categories" (ingen filtrering)
+            // Filter
             cmbCategoryFilter.Items.Add("All categories");
+
+            // Feed category
+            cmbFeedCategory.Items.Add("(no category)");
+
+            // Edit-combo
+            cmbCategoryEdit.Items.Add("(select category)");
 
             foreach (var cat in _allCategories)
             {
                 cmbCategoryFilter.Items.Add(cat);
+                cmbFeedCategory.Items.Add(cat);
+                cmbCategoryEdit.Items.Add(cat);
+                lstCategoriesRight.Items.Add(cat);
             }
 
-            // Viktigt: detta gör att combo visar Namn på Kategori-objekten
             cmbCategoryFilter.DisplayMember = "Namn";
-            cmbCategoryFilter.SelectedIndex = 0;
-        }
+            cmbFeedCategory.DisplayMember = "Namn";
+            cmbCategoryEdit.DisplayMember = "Namn";
+            lstCategoriesRight.DisplayMember = "Namn";
 
+            if (cmbCategoryFilter.Items.Count > 0) cmbCategoryFilter.SelectedIndex = 0;
+            if (cmbFeedCategory.Items.Count > 0) cmbFeedCategory.SelectedIndex = 0;
+            if (cmbCategoryEdit.Items.Count > 0) cmbCategoryEdit.SelectedIndex = 0;
+        }
 
         private void LoadSavedFeeds()
         {
-            _allSavedFeeds = _jamieService
-                .HamtaAllaFloden()?
-                .ToList()                      // <- konvertera till List
-                ?? new List<Poddflöden>();
-
+            _allSavedFeeds = _jamieService.HamtaAllaFloden()?.ToList() ?? new List<Poddflöden>();
             ApplyCategoryFilter();
         }
 
@@ -311,7 +309,6 @@ namespace UI
 
             IEnumerable<Poddflöden> filtered = _allSavedFeeds;
 
-            // Om SelectedItem är en Kategori -> filtrera
             if (cmbCategoryFilter.SelectedItem is Kategori selectedCat)
             {
                 filtered = filtered.Where(f => f.categoryId == selectedCat.Id);
@@ -332,15 +329,41 @@ namespace UI
             }
         }
 
-
-        private void cmbCategoryFilter_SelectedIndexChanged(object sender, EventArgs e)
+        private void cmbCategoryFilter_SelectedIndexChanged(object? sender, EventArgs e)
         {
             ApplyCategoryFilter();
         }
 
-        private async void lstPodcasts_SelectedIndexChanged(object sender, EventArgs e)
+        private void SyncFeedCategoryFromFeed(Poddflöden feed)
+        {
+            if (string.IsNullOrEmpty(feed.categoryId))
+            {
+                if (cmbFeedCategory.Items.Count > 0)
+                    cmbFeedCategory.SelectedIndex = 0;
+                return;
+            }
+
+            var cat = _allCategories.FirstOrDefault(c => c.Id == feed.categoryId);
+            if (cat != null)
+            {
+                cmbFeedCategory.SelectedItem = cat;
+            }
+            else if (cmbFeedCategory.Items.Count > 0)
+            {
+                cmbFeedCategory.SelectedIndex = 0;
+            }
+        }
+
+        // ============================================================
+        // LEFT: PODCAST LIST
+        // ============================================================
+
+        private async void lstPodcasts_SelectedIndexChanged(object? sender, EventArgs e)
         {
             if (lstPodcasts.SelectedItem is not Poddflöden selected)
+                return;
+
+            if (string.IsNullOrWhiteSpace(selected.rssUrl))
                 return;
 
             _currentFlode = selected;
@@ -348,91 +371,241 @@ namespace UI
             txtRssUrl.Text = selected.rssUrl;
 
             Log($"Selected saved podcast: {selected.displayName}");
+            SyncFeedCategoryFromFeed(selected);
 
             try
             {
-                // Hämta avsnitt för valt flöde (via URL)
                 var result = await _jamieService.HamtaPoddflodeFranUrlAsync(selected.rssUrl);
                 _currentEpisodes = result.Avsnitt ?? new List<PoddAvsnitt>();
 
                 FillEpisodesGrid(_currentEpisodes);
-                Log($"Loaded {_currentEpisodes.Count} episodes for '{selected.displayName}'.");
+                Log($"Loaded {_currentEpisodes.Count} episodes for '{selected.displayName}' from MongoDB.");
+
+                _currentFlode.IsSaved = true;
+                btnSaveFeed.Enabled = true;
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Error loading episodes: " + ex.Message,
-                    "Technical error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show(
+                    "Error loading episodes: " + ex.Message,
+                    "Technical error",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+
                 Log("Error loading episodes for selected podcast: " + ex);
             }
         }
 
-        // Ta bort sparat flöde (Jamies krav)
-        private async void btnDelete_Click(object sender, EventArgs e)
+        // ============================================================
+        // FEED CATEGORY: Set / Remove
+        // ============================================================
+
+        private async void btnSetCategory_Click(object? sender, EventArgs e)
         {
-            if (lstPodcasts.SelectedItem is not Poddflöden selected)
+            if (_currentFlode == null)
             {
-                MessageBox.Show("Select a saved podcast to remove.",
-                    "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show(
+                    "No feed is selected. Select a feed in the list or fetch one first.",
+                    "Validation",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
                 return;
             }
 
-            var result = MessageBox.Show(
-                $"This will remove '{selected.displayName}' and all its episodes from the database.\r\n\r\nAre you sure?",
-                "Confirm removal",
-                MessageBoxButtons.YesNo,
-                MessageBoxIcon.Warning);
+            if (!_currentFlode.IsSaved)
+            {
+                MessageBox.Show(
+                    "You must save the feed before assigning a category.",
+                    "Validation",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+                return;
+            }
 
-            if (result == DialogResult.No)
+            if (cmbFeedCategory.SelectedItem is not Kategori selectedCategory)
+            {
+                MessageBox.Show(
+                    "Please select a category in the 'Feed category' dropdown.",
+                    "Validation",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+                return;
+            }
+
+            try
+            {
+                await _poddService.AssignCategoryAsync(_currentFlode.Id, selectedCategory.Id);
+
+                _currentFlode.categoryId = selectedCategory.Id;
+                var match = _allSavedFeeds.FirstOrDefault(f => f.Id == _currentFlode.Id);
+                if (match != null) match.categoryId = selectedCategory.Id;
+
+                MessageBox.Show(
+                    $"Category '{selectedCategory.Namn}' has been set for this feed.",
+                    "Done",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+
+                Log($"Set category '{selectedCategory.Namn}' for feed '{_currentFlode.displayName}'.");
+                ApplyCategoryFilter();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(
+                    "Error while setting category: " + ex.Message,
+                    "Technical error",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+
+                Log("Error while setting category: " + ex);
+            }
+        }
+
+        private async void btnRemoveCategory_Click(object? sender, EventArgs e)
+        {
+            if (_currentFlode == null)
+            {
+                MessageBox.Show(
+                    "No feed is selected. Select a feed in the list or fetch one first.",
+                    "Validation",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+                return;
+            }
+
+            if (!_currentFlode.IsSaved)
+            {
+                MessageBox.Show(
+                    "You must save the feed before removing its category.",
+                    "Validation",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+                return;
+            }
+
+            var confirm = MessageBox.Show(
+                "This will remove the category from the selected feed. Continue?",
+                "Confirm",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Question);
+
+            if (confirm == DialogResult.No)
                 return;
 
             try
             {
-                // HÅRD DELETE: flöde + avsnitt
-                await _jamieService.TaBortPoddflodeOchAvsnittAsync(selected.rssUrl);
-                Log($"Removed feed '{selected.displayName}' and its episodes from MongoDB.");
+                // Tom sträng = ingen kategori
+                await _poddService.AssignCategoryAsync(_currentFlode.Id, string.Empty);
 
-                // uppdatera state + UI
-                _allSavedFeeds.Remove(selected);
+                _currentFlode.categoryId = string.Empty;
+                var match = _allSavedFeeds.FirstOrDefault(f => f.Id == _currentFlode.Id);
+                if (match != null) match.categoryId = string.Empty;
+
+                if (cmbFeedCategory.Items.Count > 0)
+                    cmbFeedCategory.SelectedIndex = 0;
+
+                MessageBox.Show(
+                    "Category has been removed from this feed.",
+                    "Done",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+
+                Log($"Removed category from feed '{_currentFlode.displayName}'.");
                 ApplyCategoryFilter();
-
-                // töm avsnittslistan om vi just tog bort det som var aktivt
-                if (_currentFlode != null && _currentFlode.rssUrl == selected.rssUrl)
-                {
-                    _currentFlode = null;
-                    _currentEpisodes.Clear();
-                    FillEpisodesGrid(_currentEpisodes);
-                }
-            }
-            catch (ValidationException vex)
-            {
-                MessageBox.Show(vex.Message, "Validation error",
-                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                Log("Validation error while deleting: " + vex.Message);
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Error while removing feed: " + ex.Message,
-                    "Technical error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show(
+                    "Error while removing category: " + ex.Message,
+                    "Technical error",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+
+                Log("Error while removing category: " + ex);
+            }
+        }
+
+        // ============================================================
+        // FEED: Remove / Rename
+        // ============================================================
+
+        private async void btnDelete_Click(object? sender, EventArgs e)
+        {
+            if (lstPodcasts.SelectedItem is not Poddflöden selected)
+            {
+                MessageBox.Show(
+                    "Select a saved podcast to remove.",
+                    "Validation",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+                return;
+            }
+
+            var confirm = MessageBox.Show(
+                $"This will remove the feed '{selected.displayName}' and all its saved episodes from the database.\r\n\r\nAre you sure?",
+                "Confirm feed removal",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Warning);
+
+            if (confirm == DialogResult.No)
+                return;
+
+            try
+            {
+                await _jamieService.TaBortSparatFlodeAsync(selected.rssUrl);
+                Log($"Removed feed '{selected.displayName}' and its episodes from MongoDB.");
+
+                _allSavedFeeds.Remove(selected);
+                ApplyCategoryFilter();
+
+                if (_currentFlode != null && _currentFlode.rssUrl == selected.rssUrl)
+                {
+                    _currentFlode = null;
+                    _currentEpisodes = new List<PoddAvsnitt>();
+                    dgvEpisodes.Rows.Clear();
+                    lblEpisodeTitle.Text = "No episodes.";
+                    txtDescription.Clear();
+                    btnSaveFeed.Enabled = false;
+                }
+
+                MessageBox.Show(
+                    "Podcast feed and its episodes have been removed from the database.",
+                    "Done",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(
+                    "Error while removing feed: " + ex.Message,
+                    "Technical error",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+
                 Log("Error while removing feed: " + ex);
             }
         }
 
-
-        // Byt namn på valt flöde (Alex krav)
-        private async void btnRename_Click(object sender, EventArgs e)
+        private async void btnRename_Click(object? sender, EventArgs e)
         {
             if (lstPodcasts.SelectedItem is not Poddflöden selected)
             {
-                MessageBox.Show("Select a podcast first.",
-                    "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show(
+                    "Select a podcast first.",
+                    "Validation",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
                 return;
             }
 
             var newName = txtCustomName.Text.Trim();
             if (string.IsNullOrWhiteSpace(newName))
             {
-                MessageBox.Show("Please enter a new name in the 'Custom name' field.",
-                    "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show(
+                    "Please enter a new name in the 'Custom name' field.",
+                    "Validation",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
                 return;
             }
 
@@ -441,130 +614,185 @@ namespace UI
                 await _alexService.AndraNamnPaPoddflodeAsync(selected.Id, newName);
 
                 selected.displayName = newName;
-                lstPodcasts.DisplayMember = "";         // force refresh
+                lstPodcasts.DisplayMember = "";
                 lstPodcasts.DisplayMember = "displayName";
 
-                MessageBox.Show("Podcast name updated.",
-                    "Done", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show(
+                    "Podcast name updated.",
+                    "Done",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
 
                 Log($"Renamed podcast '{selected.Id}' to '{newName}'.");
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Error while renaming: " + ex.Message,
-                    "Technical error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show(
+                    "Error while renaming: " + ex.Message,
+                    "Technical error",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+
                 Log("Error while renaming feed: " + ex);
             }
         }
 
-        // =============================
-        // CATEGORY MANAGEMENT
-        // =============================
+        // ============================================================
+        // CATEGORY MANAGEMENT (höger panel)
+        // ============================================================
 
-        private async void btnCreateCategory_Click(object sender, EventArgs e)
+        private async void btnCreateCategory_Click(object? sender, EventArgs e)
         {
             var name = txtNewCategoryName.Text.Trim();
 
             if (string.IsNullOrWhiteSpace(name))
             {
-                MessageBox.Show("Please enter a category name.",
-                    "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show(
+                    "Please enter a name for the new category.",
+                    "Validation",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
                 return;
             }
 
             try
             {
                 await _categoryService.CreateCategoryAsync(name);
-                MessageBox.Show("Category created.",
-                    "Done", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 Log($"Created category '{name}'.");
-
                 txtNewCategoryName.Clear();
+
                 await LoadCategoriesAsync();
+
+                MessageBox.Show(
+                    "Category created.",
+                    "Done",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Error while creating category: " + ex.Message,
-                    "Technical error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show(
+                    "Error while creating category: " + ex.Message,
+                    "Technical error",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+
                 Log("Error while creating category: " + ex);
             }
         }
 
-        private async void btnRenameCategory_Click(object sender, EventArgs e)
+        private async void btnRenameCategory_Click(object? sender, EventArgs e)
         {
-            if (cmbCategoryFilter.SelectedItem is not Kategori selectedCat)
+            if (cmbCategoryEdit.SelectedItem is not Kategori selectedCat)
             {
-                MessageBox.Show("Please select a category to rename (not 'All categories').",
-                    "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show(
+                    "Please select a category to rename.",
+                    "Validation",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
                 return;
             }
 
             var newName = txtEditCategoryName.Text.Trim();
             if (string.IsNullOrWhiteSpace(newName))
             {
-                MessageBox.Show("Please enter a new name for the selected category.",
-                    "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show(
+                    "Please enter a new name for the selected category.",
+                    "Validation",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
                 return;
             }
+
+            var confirm = MessageBox.Show(
+                $"Are you sure you want to rename category '{selectedCat.Namn}' to '{newName}'?",
+                "Confirm rename",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Question);
+
+            if (confirm == DialogResult.No)
+                return;
 
             try
             {
                 await _categoryService.UpdateCategoryNameAsync(selectedCat.Id, newName);
-                MessageBox.Show("Category name updated.",
-                    "Done", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                MessageBox.Show(
+                    "Category name updated.",
+                    "Done",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+
                 Log($"Renamed category '{selectedCat.Namn}' to '{newName}'.");
 
+                txtEditCategoryName.Clear();
                 await LoadCategoriesAsync();
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Error while renaming category: " + ex.Message,
-                    "Technical error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show(
+                    "Error while renaming category: " + ex.Message,
+                    "Technical error",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+
                 Log("Error while renaming category: " + ex);
             }
         }
 
-        private async void btnDeleteCategory_Click(object sender, EventArgs e)
+        private async void btnDeleteCategory_Click(object? sender, EventArgs e)
         {
-            if (cmbCategoryFilter.SelectedItem is not Kategori selectedCat)
+            if (cmbCategoryEdit.SelectedItem is not Kategori selectedCat)
             {
-                MessageBox.Show("Please select a category to delete (not 'All categories').",
-                    "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show(
+                    "Please select a category to delete.",
+                    "Validation",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
                 return;
             }
 
-            var result = MessageBox.Show(
+            var confirm = MessageBox.Show(
                 $"This will delete the category '{selectedCat.Namn}'.\r\n" +
-                "Podcasts will no longer be linked to this category.\r\n\r\n" +
+                "Podcasts linked to this category will keep their categoryId value, " +
+                "but the category itself will no longer exist.\r\n\r\n" +
                 "Are you sure?",
                 "Confirm category deletion",
                 MessageBoxButtons.YesNo,
                 MessageBoxIcon.Warning);
 
-            if (result == DialogResult.No)
+            if (confirm == DialogResult.No)
                 return;
 
             try
             {
-                // Alex' service for deleting a category
                 await _alexService.RaderaKategoriAsync(selectedCat.Id);
-                MessageBox.Show("Category deleted.",
-                    "Done", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                MessageBox.Show(
+                    "Category deleted.",
+                    "Done",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+
                 Log($"Deleted category '{selectedCat.Namn}'.");
 
+                txtEditCategoryName.Clear();
                 await LoadCategoriesAsync();
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Error while deleting category: " + ex.Message,
-                    "Technical error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show(
+                    "Error while deleting category: " + ex.Message,
+                    "Technical error",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+
                 Log("Error while deleting category: " + ex);
             }
         }
 
-
         // ============================================================
-        // RIGHT: EPISODE LIST + DETAILS
+        // EPISODES
         // ============================================================
 
         private void FillEpisodesGrid(List<PoddAvsnitt> avsnitt)
@@ -576,7 +804,7 @@ namespace UI
                 dgvEpisodes.Rows.Add(
                     ep.title,
                     ep.publishDate,
-                    string.Empty        
+                    string.Empty // duration finns inte i modellen
                 );
             }
 
@@ -593,7 +821,7 @@ namespace UI
             }
         }
 
-        private void dgvEpisodes_SelectionChanged(object sender, EventArgs e)
+        private void dgvEpisodes_SelectionChanged(object? sender, EventArgs e)
         {
             UpdateEpisodeDetailsFromGrid();
         }
@@ -619,8 +847,7 @@ namespace UI
                 $"{ep.description}";
         }
 
-        // Öppna extern länk (t.ex. avsnittets webbsida/ljudfil)
-        private void btnOpenExternalLink_Click(object sender, EventArgs e)
+        private void btnOpenExternalLink_Click(object? sender, EventArgs e)
         {
             if (_currentEpisodes == null || _currentEpisodes.Count == 0)
                 return;
@@ -635,8 +862,11 @@ namespace UI
             var ep = _currentEpisodes[index];
             if (string.IsNullOrWhiteSpace(ep.link))
             {
-                MessageBox.Show("This episode does not have a link.",
-                    "Info", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show(
+                    "This episode does not have a link.",
+                    "Info",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
                 return;
             }
 
@@ -652,14 +882,18 @@ namespace UI
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Could not open link: " + ex.Message,
-                    "Technical error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show(
+                    "Could not open link: " + ex.Message,
+                    "Technical error",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+
                 Log("Error opening external link: " + ex);
             }
         }
 
         // ============================================================
-        // LOGG
+        // LOG
         // ============================================================
 
         private void Log(string message)
@@ -669,3 +903,4 @@ namespace UI
         }
     }
 }
+
