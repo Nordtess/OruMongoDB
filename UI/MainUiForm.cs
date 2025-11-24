@@ -584,5 +584,20 @@ namespace UI
             var line = $"[{DateTime.Now:HH:mm}] {message}";
             txtLog.AppendText(line + Environment.NewLine);
         }
+
+        private void lblFeedCategory_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void lblCustomName_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void pictureBox1_Click(object sender, EventArgs e)
+        {
+            // no-op – reverted image loading
+        }
     }
 }
