@@ -79,41 +79,78 @@ namespace UI
 
         private async void btnFetch_Click(object sender, EventArgs e)
         {
+            string url = txtRssUrl.Text.Trim();
+
+            if (string.IsNullOrWhiteSpace(url))
+            {
+                MessageBox.Show("Please enter an RSS URL first.",
+                    "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
             try
             {
-                string url = txtRssUrl.Text.Trim();
-
-                if (string.IsNullOrWhiteSpace(url))
+                // ==========================
+                // 1) FÖRSÖK FRÅN MONGODB
+                // ==========================
+                try
                 {
-                    MessageBox.Show("Please enter an RSS URL first.",
-                        "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    return;
+                    Log($"Trying to load feed from MongoDB for URL: {url}");
+
+                    var dbResult = await _jamieService.HamtaPoddflodeFranUrlAsync(url);
+
+                    _currentFlode = dbResult.Flode;
+                    _currentEpisodes = dbResult.Avsnitt ?? new List<PoddAvsnitt>();
+
+                    // namn i textboxen
+                    txtCustomName.Text = _currentFlode.displayName;
+
+                    // fyll avsnittslistan
+                    FillEpisodesGrid(_currentEpisodes);
+
+                    // om den inte är sparad ännu → användaren kan trycka Save
+                    btnSaveFeed.Enabled = !_currentFlode.IsSaved;
+
+                    MessageBox.Show(
+                        $"Loaded {_currentEpisodes.Count} episodes from '{_currentFlode.displayName}' (database).",
+                        "Done", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                    Log($"Loaded {_currentEpisodes.Count} episodes for '{_currentFlode.displayName}' from MongoDB.");
+                    return; // klart, vi behöver inte gå vidare till Internet
+                }
+                catch (ValidationException vex) when (
+                    vex.Message.StartsWith("Hittade inget poddflöde i databasen"))
+                {
+                    // Just det fallet betyder "fanns inte i DB" → vi loggar och går vidare till Internet
+                    Log("No matching feed found in MongoDB, falling back to Internet…");
                 }
 
-                Log($"Fetching feed from URL: {url}");
+                // ==========================
+                // 2) FALLBACK: INTERNET
+                // ==========================
+                Log($"Fetching feed from Internet: {url}");
 
-                // Använd JamiesPoddService som i JamieForm
-                var result = await _jamieService.HamtaPoddflodeFranUrlAsync(url);
+                var netResult = await _poddService.FetchPoddFeedAsync(url);
 
-                _currentFlode = result.Flode;
-                _currentEpisodes = result.Avsnitt ?? new List<PoddAvsnitt>();
+                _currentFlode = netResult.poddflode;
+                _currentEpisodes = netResult.avsnitt ?? new List<PoddAvsnitt>();
 
-                // Sätt default-namn i textboxen (kan ändras innan save/rename)
                 txtCustomName.Text = _currentFlode.displayName;
 
-                // fyll datagrid
                 FillEpisodesGrid(_currentEpisodes);
 
-                MessageBox.Show(
-                    $"Fetched {_currentEpisodes.Count} episodes from '{_currentFlode.displayName}'.",
-                    "Done", MessageBoxButtons.OK, MessageBoxIcon.Information);
-
+                // Nytt internetflöde är inte sparat ännu
                 btnSaveFeed.Enabled = true;
 
-                Log($"Fetched {_currentEpisodes.Count} episodes from '{_currentFlode.displayName}'.");
+                MessageBox.Show(
+                    $"Fetched {_currentEpisodes.Count} episodes from '{_currentFlode.displayName}' (Internet).",
+                    "Done", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                Log($"Loaded {_currentEpisodes.Count} episodes for '{_currentFlode.displayName}' from Internet.");
             }
             catch (ValidationException vex)
             {
+                // andra valideringsfel (t.ex. ogiltig URL)
                 MessageBox.Show(vex.Message, "Validation error",
                     MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 Log("Validation error while fetching: " + vex.Message);
@@ -125,6 +162,8 @@ namespace UI
                 Log("Error while fetching feed: " + ex);
             }
         }
+
+
 
         private async void btnSaveFeed_Click(object sender, EventArgs e)
         {
