@@ -77,6 +77,8 @@ namespace UI
         // TOP: FETCH VIA RSS + SAVE
         // ============================================================
 
+
+
         private async void btnFetch_Click(object sender, EventArgs e)
         {
             string url = txtRssUrl.Text.Trim();
@@ -90,8 +92,11 @@ namespace UI
 
             try
             {
+                Poddflöden? dbFlode = null;
+                List<PoddAvsnitt> dbEpisodes = new();
+
                 // ==========================
-                // 1) FÖRSÖK FRÅN MONGODB
+                // 1) FÖRSÖK LÄSA FRÅN MONGODB
                 // ==========================
                 try
                 {
@@ -99,48 +104,72 @@ namespace UI
 
                     var dbResult = await _jamieService.HamtaPoddflodeFranUrlAsync(url);
 
-                    _currentFlode = dbResult.Flode;
-                    _currentEpisodes = dbResult.Avsnitt ?? new List<PoddAvsnitt>();
+                    dbFlode = dbResult.Flode;
+                    dbEpisodes = dbResult.Avsnitt ?? new List<PoddAvsnitt>();
 
-                    // namn i textboxen
-                    txtCustomName.Text = _currentFlode.displayName;
+                    if (dbEpisodes.Count > 0)
+                    {
+                        // Flöde + avsnitt finns redan i DB → använd dem
+                        _currentFlode = dbFlode;
+                        _currentEpisodes = dbEpisodes;
 
-                    // fyll avsnittslistan
-                    FillEpisodesGrid(_currentEpisodes);
+                        txtCustomName.Text = _currentFlode.displayName;
+                        FillEpisodesGrid(_currentEpisodes);
 
-                    // om den inte är sparad ännu → användaren kan trycka Save
-                    btnSaveFeed.Enabled = !_currentFlode.IsSaved;
+                        // Om IsSaved = true → ingen idé att spara igen
+                        btnSaveFeed.Enabled = !_currentFlode.IsSaved;
 
-                    MessageBox.Show(
-                        $"Loaded {_currentEpisodes.Count} episodes from '{_currentFlode.displayName}' (database).",
-                        "Done", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        MessageBox.Show(
+                            $"Loaded {_currentEpisodes.Count} episodes from '{_currentFlode.displayName}' (database).",
+                            "Done", MessageBoxButtons.OK, MessageBoxIcon.Information);
 
-                    Log($"Loaded {_currentEpisodes.Count} episodes for '{_currentFlode.displayName}' from MongoDB.");
-                    return; // klart, vi behöver inte gå vidare till Internet
+                        Log($"Loaded {_currentEpisodes.Count} episodes for '{_currentFlode.displayName}' from MongoDB.");
+                        return;
+                    }
+
+                    // Flödet finns, men saknar avsnitt i DB
+                    Log($"Feed '{dbFlode.displayName}' found in MongoDB but has 0 episodes. Fetching episodes from Internet…");
                 }
                 catch (ValidationException vex) when (
                     vex.Message.StartsWith("Hittade inget poddflöde i databasen"))
                 {
-                    // Just det fallet betyder "fanns inte i DB" → vi loggar och går vidare till Internet
-                    Log("No matching feed found in MongoDB, falling back to Internet…");
+                    // Flödet finns inte alls i DB → vi går direkt till internet nedan
+                    Log("No matching feed found in MongoDB, fetching from Internet…");
                 }
 
                 // ==========================
-                // 2) FALLBACK: INTERNET
+                // 2) INTERNET (NYTT ELLER “TOMT” FLÖDE)
                 // ==========================
                 Log($"Fetching feed from Internet: {url}");
 
-                var netResult = await _poddService.FetchPoddFeedAsync(url);
+                // PoddService.FetchPoddFeedAsync returnerar (Poddflöden poddflode, List<PoddAvsnitt> avsnitt)
+                var (poddflode, avsnitt) = await _poddService.FetchPoddFeedAsync(url);
+                var internetEpisodes = avsnitt ?? new List<PoddAvsnitt>();
 
-                _currentFlode = netResult.poddflode;
-                _currentEpisodes = netResult.avsnitt ?? new List<PoddAvsnitt>();
+                if (dbFlode != null)
+                {
+                    // Flödet fanns i DB men utan avsnitt:
+                    // Behåll DB-flödets Id (så feedId matchar rätt dokument)
+                    _currentFlode = dbFlode;
+                    _currentEpisodes = internetEpisodes;
+
+                    foreach (var ep in _currentEpisodes)
+                    {
+                        ep.feedId = _currentFlode.Id!;
+                    }
+                }
+                else
+                {
+                    // Helt nytt flöde – ta allt från internet
+                    _currentFlode = poddflode;
+                    _currentEpisodes = internetEpisodes;
+                }
 
                 txtCustomName.Text = _currentFlode.displayName;
-
                 FillEpisodesGrid(_currentEpisodes);
 
-                // Nytt internetflöde är inte sparat ännu
-                btnSaveFeed.Enabled = true;
+                // Nya/in-kompletta flöden är inte sparade → användaren kan spara
+                btnSaveFeed.Enabled = !_currentFlode.IsSaved;
 
                 MessageBox.Show(
                     $"Fetched {_currentEpisodes.Count} episodes from '{_currentFlode.displayName}' (Internet).",
@@ -150,9 +179,12 @@ namespace UI
             }
             catch (ValidationException vex)
             {
-                // andra valideringsfel (t.ex. ogiltig URL)
-                MessageBox.Show(vex.Message, "Validation error",
-                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show(
+    vex.Message,
+    "Validation error",
+    MessageBoxButtons.OK,
+    MessageBoxIcon.Warning);
+
                 Log("Validation error while fetching: " + vex.Message);
             }
             catch (Exception ex)
@@ -171,15 +203,15 @@ namespace UI
             {
                 if (_currentFlode == null)
                 {
-                    MessageBox.Show("No feed has been fetched yet.",
+                    MessageBox.Show("No feed has been loaded yet.",
                         "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     return;
                 }
 
-                if (_currentFlode.IsSaved)
+                if (_currentEpisodes == null || _currentEpisodes.Count == 0)
                 {
-                    MessageBox.Show("This podcast is already saved.",
-                        "Info", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    MessageBox.Show("There are no episodes to save for this feed.",
+                        "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     return;
                 }
 
@@ -190,29 +222,34 @@ namespace UI
                     _currentFlode.displayName = customName;
                 }
 
-                // Spara flöde (Jamies logik)
-                await _jamieService.SparaPoddflodeAsync(_currentFlode);
+                // Säkerställ att alla avsnitt pekar på rätt feedId
+                foreach (var ep in _currentEpisodes)
+                {
+                    ep.feedId = _currentFlode.Id!;
+                }
 
-                // Markera som sparad lokalt
+                // Kategori: om en kategori är vald i comboboxen så sätt den på flödet
+                if (cmbCategoryFilter.SelectedItem is Kategori selectedCategory)
+                {
+                    _currentFlode.categoryId = selectedCategory.Id;
+                }
+
+                // Spara flöde + avsnitt I EN TRANSAKTION
+                await _jamieService.SparaPoddflodeOchAvsnittAsync(_currentFlode, _currentEpisodes);
+
                 _currentFlode.IsSaved = true;
                 _currentFlode.SavedAt = DateTime.UtcNow;
 
-                // Om en kategori är vald (inte "All") → koppla kategori till flödet
-                var selectedCategory = cmbCategoryFilter.SelectedItem as Kategori;
-                if (selectedCategory != null)
-                {
-                    await _poddService.AssignCategoryAsync(_currentFlode.Id, selectedCategory.Id);
-                    _currentFlode.categoryId = selectedCategory.Id;
-                    Log($"Assigned category '{selectedCategory.Namn}' to podcast '{_currentFlode.displayName}'.");
-                }
-
-                MessageBox.Show("Podcast feed saved to your register.",
+                MessageBox.Show("Podcast feed and its episodes have been saved to your register.",
                     "Done", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                Log($"Saved feed '{_currentFlode.displayName}' and {_currentEpisodes.Count} episodes.");
 
                 // Uppdatera listan med sparade flöden
                 LoadSavedFeeds();
 
-                Log($"Saved feed '{_currentFlode.displayName}' to MongoDB.");
+                // eftersom den nu är sparad behöver man inte spara igen direkt
+                btnSaveFeed.Enabled = false;
             }
             catch (ValidationException vex)
             {
@@ -224,9 +261,11 @@ namespace UI
             {
                 MessageBox.Show("Error while saving feed: " + ex.Message,
                     "Technical error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                Log("Error while saving feed: " + ex);
+                Log("Error while saving feed and episodes: " + ex);
             }
         }
+
+
 
         // ============================================================
         // LEFT: SAVED PODCASTS + CATEGORY FILTER
@@ -338,7 +377,7 @@ namespace UI
             }
 
             var result = MessageBox.Show(
-                $"Remove podcast '{selected.displayName}' from your register?",
+                $"This will remove '{selected.displayName}' and all its episodes from the database.\r\n\r\nAre you sure?",
                 "Confirm removal",
                 MessageBoxButtons.YesNo,
                 MessageBoxIcon.Warning);
@@ -348,12 +387,27 @@ namespace UI
 
             try
             {
-                await _jamieService.TaBortSparatFlodeAsync(selected.rssUrl);
-                Log($"Removed feed '{selected.displayName}' from MongoDB.");
+                // HÅRD DELETE: flöde + avsnitt
+                await _jamieService.TaBortPoddflodeOchAvsnittAsync(selected.rssUrl);
+                Log($"Removed feed '{selected.displayName}' and its episodes from MongoDB.");
 
                 // uppdatera state + UI
                 _allSavedFeeds.Remove(selected);
                 ApplyCategoryFilter();
+
+                // töm avsnittslistan om vi just tog bort det som var aktivt
+                if (_currentFlode != null && _currentFlode.rssUrl == selected.rssUrl)
+                {
+                    _currentFlode = null;
+                    _currentEpisodes.Clear();
+                    FillEpisodesGrid(_currentEpisodes);
+                }
+            }
+            catch (ValidationException vex)
+            {
+                MessageBox.Show(vex.Message, "Validation error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                Log("Validation error while deleting: " + vex.Message);
             }
             catch (Exception ex)
             {
@@ -362,6 +416,7 @@ namespace UI
                 Log("Error while removing feed: " + ex);
             }
         }
+
 
         // Byt namn på valt flöde (Alex krav)
         private async void btnRename_Click(object sender, EventArgs e)

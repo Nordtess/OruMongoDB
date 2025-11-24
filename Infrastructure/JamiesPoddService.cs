@@ -145,5 +145,33 @@ namespace OruMongoDB.Core
                 throw new ValidationException($"Hittade inget poddflöde med RSS-URL: {rssUrl}");
             }
         }
+
+
+        public async Task TaBortPoddflodeOchAvsnittAsync(string rssUrl)
+        {
+            PoddValidator.ValidateRssUrl(rssUrl);
+
+            await _connector.RunTransactionAsync(async session =>
+            {
+                // 1) Hämta flödet via rssUrl
+                var flodeFilter = Builders<Poddflöden>.Filter.Eq(f => f.rssUrl, rssUrl);
+                var flode = await _flodeCollection
+                    .Find(session, flodeFilter)
+                    .FirstOrDefaultAsync();
+
+                if (flode == null)
+                {
+                    throw new ValidationException($"Hittade inget poddflöde med RSS-URL: {rssUrl}");
+                }
+
+                // 2) Ta bort alla avsnitt kopplade till detta flöde
+                var avsnittFilter = Builders<PoddAvsnitt>.Filter.Eq(a => a.feedId, flode.Id);
+                await _avsnittCollection.DeleteManyAsync(session, avsnittFilter);
+
+                // 3) Ta bort själva flödet
+                await _flodeCollection.DeleteOneAsync(session, flodeFilter);
+            });
+        }
+
     }
 }
