@@ -38,7 +38,7 @@ namespace UI
             var avsnittRepo = new PoddAvsnittRepository(db);
             var rssParser = new RssParser();
             _poddService = new PoddService(poddRepo, avsnittRepo, rssParser, connector);
-            _categoryService = new CategoryService(new CategoryRepository(db));
+            _categoryService = new CategoryService(new CategoryRepository(db), connector);
         }
 
         private async void MainUiForm_Load(object? sender, EventArgs e)
