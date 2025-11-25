@@ -10,10 +10,10 @@ namespace OruMongoDB.BusinessLayer
 {
     public class CategoryService
     {
-        private readonly CategoryRepository _categoryRepository;
+        private readonly ICategoryRepository _categoryRepository;
         private readonly MongoConnector _connector;
 
-        public CategoryService(CategoryRepository categoryRepository, MongoConnector connector)
+        public CategoryService(ICategoryRepository categoryRepository, MongoConnector connector)
         {
             _categoryRepository = categoryRepository;
             _connector = connector;
@@ -24,7 +24,8 @@ namespace OruMongoDB.BusinessLayer
 
         public async Task CreateCategoryAsync(string name)
         {
-            if (string.IsNullOrWhiteSpace(name)) throw new ValidationException("Category name cannot be empty.");
+            if (string.IsNullOrWhiteSpace(name))
+                throw new ValidationException("Category name cannot be empty.");
 
             var all = await _categoryRepository.GetAllAsync();
             if (all.Any(c => c.Namn.Equals(name, StringComparison.OrdinalIgnoreCase)))
@@ -40,8 +41,10 @@ namespace OruMongoDB.BusinessLayer
 
         public async Task UpdateCategoryNameAsync(string categoryId, string newName)
         {
-            if (string.IsNullOrWhiteSpace(categoryId)) throw new ValidationException("Category ID cannot be empty.");
-            if (string.IsNullOrWhiteSpace(newName)) throw new ValidationException("New category name cannot be empty.");
+            if (string.IsNullOrWhiteSpace(categoryId))
+                throw new ValidationException("Category ID cannot be empty.");
+            if (string.IsNullOrWhiteSpace(newName))
+                throw new ValidationException("New category name cannot be empty.");
 
             await _connector.RunTransactionAsync(async session =>
             {
@@ -51,7 +54,8 @@ namespace OruMongoDB.BusinessLayer
 
         public async Task DeleteCategoryAsync(string categoryId)
         {
-            if (string.IsNullOrWhiteSpace(categoryId)) throw new ValidationException("Category ID cannot be empty.");
+            if (string.IsNullOrWhiteSpace(categoryId))
+                throw new ValidationException("Category ID cannot be empty.");
 
             await _connector.RunTransactionAsync(async session =>
             {

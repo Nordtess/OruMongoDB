@@ -3,23 +3,24 @@ using OruMongoDB.Domain;
 
 namespace OruMongoDB.Infrastructure
 {
-    public class CategoryRepository : MongoRepository<Kategori>
+    public class CategoryRepository : MongoRepository<Kategori>, ICategoryRepository
     {
         public CategoryRepository(IMongoDatabase database) : base(database, "Kategorier") { }
 
-        public Task InsertAsync(Kategori category) => _collection.InsertOneAsync(category);
+        public Task InsertAsync(Kategori category) =>
+            _collection.InsertOneAsync(category);
 
-        public async Task UpdateCategoryNameAsync(string categoryId, string newName)
+        public Task UpdateCategoryNameAsync(string categoryId, string newName)
         {
             var filter = Builders<Kategori>.Filter.Eq(c => c.Id, categoryId);
             var update = Builders<Kategori>.Update.Set(c => c.Namn, newName);
-            await _collection.UpdateOneAsync(filter, update);
+            return _collection.UpdateOneAsync(filter, update);
         }
 
-        public async Task DeleteCategoryAsync(string categoryId)
+        public Task DeleteCategoryAsync(string categoryId)
         {
             var filter = Builders<Kategori>.Filter.Eq(c => c.Id, categoryId);
-            await _collection.DeleteOneAsync(filter);
+            return _collection.DeleteOneAsync(filter);
         }
 
         // Transaction-aware overloads

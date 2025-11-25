@@ -6,10 +6,8 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using OruMongoDB.BusinessLayer;
-using OruMongoDB.BusinessLayer.Rss;
 using OruMongoDB.Core;
 using OruMongoDB.Domain;
-using OruMongoDB.Infrastructure;
 using OruMongoDB.Core.Validation;
 using System.Drawing;
 
@@ -17,8 +15,8 @@ namespace UI
 {
     public partial class MainUiForm : Form
     {
-        private readonly JamiesPoddService _jamieService = new JamiesPoddService();
-        private readonly PoddService _poddService;
+        private readonly JamiesPoddService _jamieService;
+        private readonly IPoddService _poddService;
         private readonly CategoryService _categoryService;
         private readonly AlexKrav _alexService = new AlexKrav();
 
@@ -32,13 +30,10 @@ namespace UI
             InitializeComponent();
             ApplyTheme();
 
-            var connector = MongoConnector.Instance;
-            var db = connector.GetDatabase();
-            var poddRepo = new PoddflodeRepository(db);
-            var avsnittRepo = new PoddAvsnittRepository(db);
-            var rssParser = new RssParser();
-            _poddService = new PoddService(poddRepo, avsnittRepo, rssParser, connector);
-            _categoryService = new CategoryService(new CategoryRepository(db), connector);
+            // Use factory to obtain services (UI no longer constructs infrastructure objects)
+            _jamieService = ServiceFactory.CreateJamiesPoddService();
+            _poddService = ServiceFactory.CreatePoddService();
+            _categoryService = ServiceFactory.CreateCategoryService();
         }
 
         private async void MainUiForm_Load(object? sender, EventArgs e)
@@ -360,7 +355,7 @@ namespace UI
                     lblEpisodeCount.Text = "Episodes: 0";
                     txtDescription.Clear();
                 }
-                MessageBox.Show("Feed removed.", "Done",    
+                MessageBox.Show("Feed removed.", "Done",
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
             catch (Exception ex)
