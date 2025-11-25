@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Threading.Tasks;
+using MongoDB.Driver;
 using OruMongoDB.Domain;
 using OruMongoDB.Infrastructure;
 
@@ -57,9 +58,15 @@ namespace OruMongoDB.BusinessLayer
             if (string.IsNullOrWhiteSpace(categoryId))
                 throw new ValidationException("Category ID cannot be empty.");
 
+            var feeds = _connector.GetCollection<Poddflöden>("Poddflöden");
+
             await _connector.RunTransactionAsync(async session =>
             {
                 await _categoryRepository.DeleteCategoryAsync(session, categoryId);
+
+                var feedFilter = Builders<Poddflöden>.Filter.Eq(f => f.categoryId, categoryId);
+                var feedUpdate = Builders<Poddflöden>.Update.Set(f => f.categoryId, string.Empty);
+                await feeds.UpdateManyAsync(session, feedFilter, feedUpdate);
             });
         }
     }

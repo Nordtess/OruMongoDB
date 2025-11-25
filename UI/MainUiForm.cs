@@ -10,15 +10,15 @@ using OruMongoDB.Core;
 using OruMongoDB.Domain;
 using OruMongoDB.Core.Validation;
 using System.Drawing;
+using OruMongoDB.Infrastructure;
 
 namespace UI
 {
     public partial class MainUiForm : Form
     {
-        private readonly JamiesPoddService _jamieService;
+        private readonly PodcastDataService _dataService;
         private readonly IPoddService _poddService;
         private readonly CategoryService _categoryService;
-        private readonly AlexKrav _alexService = new AlexKrav();
 
         private List<Poddflöden> _allSavedFeeds = new();
         private Poddflöden? _currentFlode;
@@ -30,8 +30,7 @@ namespace UI
             InitializeComponent();
             ApplyTheme();
 
-            // Use factory to obtain services (UI no longer constructs infrastructure objects)
-            _jamieService = ServiceFactory.CreateJamiesPoddService();
+            _dataService = ServiceFactory.CreatePodcastDataService();
             _poddService = ServiceFactory.CreatePoddService();
             _categoryService = ServiceFactory.CreateCategoryService();
         }
@@ -78,7 +77,7 @@ namespace UI
                 Log($"Trying to load feed from MongoDB for URL: {url}");
                 try
                 {
-                    var dbResult = await _jamieService.HamtaPoddflodeFranUrlAsync(url);
+                    var dbResult = await _dataService.HamtaPoddflodeFranUrlAsync(url);
                     _currentFlode = dbResult.Flode;
                     _currentEpisodes = dbResult.Avsnitt ?? new List<PoddAvsnitt>();
                     _currentFlode.IsSaved = true;
@@ -138,7 +137,7 @@ namespace UI
                 foreach (var ep in _currentEpisodes)
                     ep.feedId = _currentFlode.Id!;
 
-                await _jamieService.SparaPoddflodeOchAvsnittAsync(_currentFlode, _currentEpisodes);
+                await _dataService.SparaPoddflodeOchAvsnittAsync(_currentFlode, _currentEpisodes);
                 _currentFlode.IsSaved = true;
                 _currentFlode.SavedAt = DateTime.UtcNow;
 
@@ -193,7 +192,7 @@ namespace UI
 
         private void LoadSavedFeeds()
         {
-            _allSavedFeeds = _jamieService.HamtaAllaFloden()?.ToList() ?? new List<Poddflöden>();
+            _allSavedFeeds = _dataService.HamtaAllaFloden()?.ToList() ?? new List<Poddflöden>();
             ApplyCategoryFilter();
         }
 
@@ -244,7 +243,7 @@ namespace UI
 
             try
             {
-                var result = await _jamieService.HamtaPoddflodeFranUrlAsync(selected.rssUrl);
+                var result = await _dataService.HamtaPoddflodeFranUrlAsync(selected.rssUrl);
                 _currentEpisodes = result.Avsnitt ?? new List<PoddAvsnitt>();
                 FillEpisodesGrid(_currentEpisodes);
                 Log($"Loaded {_currentEpisodes.Count} episodes for '{selected.displayName}'.");
@@ -342,7 +341,7 @@ namespace UI
 
             try
             {
-                await _jamieService.TaBortSparatFlodeAsync(selected.rssUrl);
+                await _dataService.TaBortSparatFlodeAsync(selected.rssUrl);
                 Log($"Removed feed '{selected.displayName}'.");
                 _allSavedFeeds.Remove(selected);
                 ApplyCategoryFilter();
@@ -376,7 +375,7 @@ namespace UI
                 var newName = txtCustomName.Text.Trim();
                 PoddValidator.EnsureFeedRenameValid(selected, newName);
 
-                await _alexService.AndraNamnPaPoddflodeAsync(selected.Id!, newName);
+                await _dataService.RenameFeedAsync(selected.Id!, newName);
                 selected.displayName = newName;
                 lstPodcasts.DisplayMember = "";
                 lstPodcasts.DisplayMember = "displayName";
@@ -478,7 +477,7 @@ namespace UI
                     "Confirm deletion", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
                 if (confirm == DialogResult.No) return;
 
-                await _alexService.RaderaKategoriAsync(selectedCat.Id);
+                await _categoryService.DeleteCategoryAsync(selectedCat.Id);
                 Log($"Deleted category '{selectedCat.Namn}'.");
                 txtEditCategoryName.Clear();
                 await LoadCategoriesAsync();

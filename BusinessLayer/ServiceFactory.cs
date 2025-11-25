@@ -1,6 +1,6 @@
-using OruMongoDB.BusinessLayer.Rss;
 using OruMongoDB.Core;
 using OruMongoDB.Infrastructure;
+using OruMongoDB.BusinessLayer.Rss;
 
 namespace OruMongoDB.BusinessLayer
 {
@@ -24,10 +24,9 @@ namespace OruMongoDB.BusinessLayer
             return new CategoryService(categoryRepo, connector);
         }
 
-        public static JamiesPoddService CreateJamiesPoddService()
+        public static PodcastDataService CreatePodcastDataService()
         {
-            // JamiesPoddService internally uses MongoConnector.Instance so no extra setup needed
-            return new JamiesPoddService();
+            return new PodcastDataService();
         }
     }
 }
