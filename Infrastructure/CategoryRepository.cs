@@ -5,22 +5,14 @@ namespace OruMongoDB.Infrastructure
 {
     public class CategoryRepository : MongoRepository<Kategori>
     {
-        public CategoryRepository(IMongoDatabase database)
-            : base(database, "Kategorier")
-        {
-        }
+        public CategoryRepository(IMongoDatabase database) : base(database, "Kategorier") { }
 
-        
-        public Task InsertAsync(Kategori category)
-        {
-            return _collection.InsertOneAsync(category);
-        }
+        public Task InsertAsync(Kategori category) => _collection.InsertOneAsync(category);
 
         public async Task UpdateCategoryNameAsync(string categoryId, string newName)
         {
             var filter = Builders<Kategori>.Filter.Eq(c => c.Id, categoryId);
             var update = Builders<Kategori>.Update.Set(c => c.Namn, newName);
-
             await _collection.UpdateOneAsync(filter, update);
         }
 
@@ -28,6 +20,23 @@ namespace OruMongoDB.Infrastructure
         {
             var filter = Builders<Kategori>.Filter.Eq(c => c.Id, categoryId);
             await _collection.DeleteOneAsync(filter);
+        }
+
+        // Transaction-aware overloads
+        public Task InsertAsync(IClientSessionHandle session, Kategori category) =>
+            _collection.InsertOneAsync(session, category);
+
+        public Task UpdateCategoryNameAsync(IClientSessionHandle session, string categoryId, string newName)
+        {
+            var filter = Builders<Kategori>.Filter.Eq(c => c.Id, categoryId);
+            var update = Builders<Kategori>.Update.Set(c => c.Namn, newName);
+            return _collection.UpdateOneAsync(session, filter, update);
+        }
+
+        public Task DeleteCategoryAsync(IClientSessionHandle session, string categoryId)
+        {
+            var filter = Builders<Kategori>.Filter.Eq(c => c.Id, categoryId);
+            return _collection.DeleteOneAsync(session, filter);
         }
     }
 }

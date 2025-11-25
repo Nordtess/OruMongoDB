@@ -163,12 +163,19 @@ namespace OruMongoDB.BusinessLayer
                 throw new ServiceException("Category ID cannot be empty.");
             }
 
+            using var session = await _client.StartSessionAsync();
+            session.StartTransaction();
+
             try
             {
-                await _poddRepo.UpdateCategoryAsync(poddId, categoryId);
+                await _poddRepo.UpdateCategoryAsync(session, poddId, categoryId);
+
+                await session.CommitTransactionAsync();
             }
             catch (Exception ex)
             {
+                await session.AbortTransactionAsync();
+
                 throw new ServiceException(
                     "Could not assign category to the selected feed.",
                     ex);
@@ -183,13 +190,20 @@ namespace OruMongoDB.BusinessLayer
                 throw new ServiceException("Feed ID cannot be empty.");
             }
 
+            using var session = await _client.StartSessionAsync();
+            session.StartTransaction();
+
             try
             {
                 // Convention: empty string means "no category"
-                await _poddRepo.UpdateCategoryAsync(poddId, string.Empty);
+                await _poddRepo.UpdateCategoryAsync(session, poddId, string.Empty);
+
+                await session.CommitTransactionAsync();
             }
             catch (Exception ex)
             {
+                await session.AbortTransactionAsync();
+
                 throw new ServiceException(
                     "Could not remove category from the selected feed.",
                     ex);
