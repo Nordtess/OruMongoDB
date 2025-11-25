@@ -10,7 +10,8 @@ using OruMongoDB.BusinessLayer.Rss;
 using OruMongoDB.Core;
 using OruMongoDB.Domain;
 using OruMongoDB.Infrastructure;
-using OruMongoDB.Core.Validation; 
+using OruMongoDB.Core.Validation;
+using System.Drawing;
 
 namespace UI
 {
@@ -29,6 +30,8 @@ namespace UI
         public MainUiForm()
         {
             InitializeComponent();
+            ApplyTheme();
+
             var connector = MongoConnector.Instance;
             var db = connector.GetDatabase();
             var poddRepo = new PoddflodeRepository(db);
@@ -578,5 +581,148 @@ namespace UI
         {
             // no-op – reverted image loading
         }
+
+        private void ApplyTheme()
+        {
+            // 🎨 Basfärgskala
+            Color bg = Color.FromArgb(22, 22, 22);       // Form bakgrund (kolsvart)
+            Color panelBg = Color.FromArgb(30, 30, 30);  // Lätt ljusare panel
+            Color borderGray = Color.FromArgb(55, 55, 55);
+            Color btnGray = Color.FromArgb(45, 45, 45);
+            Color btnHover = Color.FromArgb(60, 60, 60);
+            Color btnDown = Color.FromArgb(35, 35, 35);
+
+            Color textWhite = Color.WhiteSmoke;
+            Color textGray = Color.FromArgb(200, 200, 200);
+
+            // 🖥️ Form
+            this.BackColor = bg;
+            this.ForeColor = textWhite;
+            this.Font = new Font("Segoe UI", 9F, FontStyle.Regular);
+
+            // 🧱 GroupBoxes
+            StyleGroupBox(grpMyPodcasts, panelBg, textGray);
+            StyleGroupBox(grpEpisodes, panelBg, textGray);
+            StyleGroupBox(grpCategories, panelBg, textGray);
+
+            // 📋 Labels
+            foreach (var lbl in new[]
+            {
+        lblRssUrl, lblCategoryFilter, lblCustomName, lblFeedCategory,
+        lblNewCategory, lblCategoryEdit, lblNewCategoryName, lblEpisodeTitle
+    })
+            {
+                lbl.ForeColor = textGray;
+            }
+
+            lblEpisodeTitle.ForeColor = textWhite;
+
+            // ✏️ TextBoxar
+            StyleTextBox(txtRssUrl, panelBg, textWhite, borderGray);
+            StyleTextBox(txtCustomName, panelBg, textWhite, borderGray);
+            StyleTextBox(txtNewCategoryName, panelBg, textWhite, borderGray);
+            StyleTextBox(txtEditCategoryName, panelBg, textWhite, borderGray);
+
+            txtDescription.BackColor = bg;
+            txtDescription.ForeColor = textWhite;
+            txtDescription.BorderStyle = BorderStyle.FixedSingle;
+
+            txtLog.BackColor = Color.FromArgb(18, 18, 18);
+            txtLog.ForeColor = Color.FromArgb(210, 210, 210);
+            txtLog.BorderStyle = BorderStyle.FixedSingle;
+
+            // 📜 Listboxes
+            StyleListBox(lstPodcasts, bg, textWhite, borderGray);
+            StyleListBox(lstCategoriesRight, bg, textWhite, borderGray);
+
+            // 🔽 ComboBoxes
+            StyleComboBox(cmbCategoryFilter, panelBg, textWhite);
+            StyleComboBox(cmbFeedCategory, panelBg, textWhite);
+            StyleComboBox(cmbCategoryEdit, panelBg, textWhite);
+
+            // 🔘 Knappar (alla identiska, neutrala, clean)
+            StyleButton(btnFetch, btnGray, btnHover, btnDown, textWhite, borderGray);
+            StyleButton(btnSaveFeed, btnGray, btnHover, btnDown, textWhite, borderGray);
+            StyleButton(btnOpenExternalLink, btnGray, btnHover, btnDown, textWhite, borderGray);
+
+            StyleButton(btnSetCategory, btnGray, btnHover, btnDown, textWhite, borderGray);
+            StyleButton(btnRemoveCategory, btnGray, btnHover, btnDown, textWhite, borderGray);
+            StyleButton(btnDelete, btnGray, btnHover, btnDown, textWhite, borderGray);
+            StyleButton(btnRename, btnGray, btnHover, btnDown, textWhite, borderGray);
+
+            StyleButton(btnCreateCategory, btnGray, btnHover, btnDown, textWhite, borderGray);
+            StyleButton(btnRenameCategory, btnGray, btnHover, btnDown, textWhite, borderGray);
+            StyleButton(btnDeleteCategory, btnGray, btnHover, btnDown, textWhite, borderGray);
+
+            // 📊 DataGridView — inget färgtema, bara grått & vitt
+            StyleGrid(dgvEpisodes, bg, panelBg, textWhite);
+
+            pictureBox1.BackColor = bg;
+        }
+
+        private void StyleButton(Button btn, Color bg, Color hover, Color down, Color text, Color border)
+        {
+            btn.FlatStyle = FlatStyle.Flat;
+            btn.FlatAppearance.BorderSize = 1;
+            btn.FlatAppearance.BorderColor = border;
+
+            btn.BackColor = bg;
+            btn.ForeColor = text;
+
+            btn.FlatAppearance.MouseOverBackColor = hover;
+            btn.FlatAppearance.MouseDownBackColor = down;
+
+            btn.Cursor = Cursors.Hand;
+        }
+
+        private void StyleGroupBox(GroupBox g, Color bg, Color text)
+        {
+            g.BackColor = bg;
+            g.ForeColor = text;
+        }
+
+        private void StyleListBox(ListBox lst, Color bg, Color text, Color border)
+        {
+            lst.BackColor = bg;
+            lst.ForeColor = text;
+            lst.BorderStyle = BorderStyle.FixedSingle;
+        }
+
+        private void StyleComboBox(ComboBox cmb, Color bg, Color text)
+        {
+            cmb.BackColor = bg;
+            cmb.ForeColor = text;
+            cmb.FlatStyle = FlatStyle.Flat;
+        }
+
+        private void StyleTextBox(TextBox txt, Color bg, Color text, Color border)
+        {
+            txt.BackColor = bg;
+            txt.ForeColor = text;
+            txt.BorderStyle = BorderStyle.FixedSingle;
+        }
+
+        private void StyleGrid(DataGridView dgv, Color bg, Color headerBg, Color text)
+        {
+            dgv.BackgroundColor = bg;
+            dgv.BorderStyle = BorderStyle.None;
+            dgv.EnableHeadersVisualStyles = false;
+
+            dgv.ColumnHeadersDefaultCellStyle.BackColor = headerBg;
+            dgv.ColumnHeadersDefaultCellStyle.ForeColor = text;
+            dgv.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+
+            dgv.DefaultCellStyle.BackColor = bg;
+            dgv.DefaultCellStyle.ForeColor = text;
+            dgv.DefaultCellStyle.SelectionBackColor = Color.FromArgb(50, 50, 50); // mjuk markering
+            dgv.DefaultCellStyle.SelectionForeColor = Color.White;
+
+            dgv.GridColor = Color.FromArgb(60, 60, 60);
+        }
+
+
+
+
+
     }
 }
