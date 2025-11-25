@@ -308,7 +308,8 @@ namespace UI
                     MessageBoxButtons.YesNo, MessageBoxIcon.Question);
                 if (confirm == DialogResult.No) return;
 
-                await _poddService.AssignCategoryAsync(_currentFlode.Id!, string.Empty);
+                
+                await _poddService.RemoveCategoryAsync(_currentFlode.Id!);
                 _currentFlode.categoryId = string.Empty;
                 var match = _allSavedFeeds.FirstOrDefault(f => f.Id == _currentFlode.Id);
                 if (match != null) match.categoryId = string.Empty;
