@@ -6,17 +6,15 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using OruMongoDB.BusinessLayer;
-using OruMongoDB.Core;
 using OruMongoDB.Domain;
 using OruMongoDB.Core.Validation;
 using System.Drawing;
-using OruMongoDB.Infrastructure;
+using UI;
 
 namespace UI
 {
     public partial class MainUiForm : Form
     {
-        private readonly PodcastDataService _dataService;
         private readonly IPoddService _poddService;
         private readonly CategoryService _categoryService;
 
@@ -29,8 +27,6 @@ namespace UI
         {
             InitializeComponent();
             ApplyTheme();
-
-            _dataService = ServiceFactory.CreatePodcastDataService();
             _poddService = ServiceFactory.CreatePoddService();
             _categoryService = ServiceFactory.CreateCategoryService();
         }
@@ -40,12 +36,12 @@ namespace UI
             try
             {
                 await LoadCategoriesAsync();
-                LoadSavedFeeds();
-                Log("Application started.");
+                await LoadSavedFeedsAsync();
+                UiHelpers.LogTo(txtLog, "Application started.");
             }
             catch (Exception ex)
             {
-                Log("Error on startup: " + ex.Message);
+                UiHelpers.LogTo(txtLog, "Error on startup: " + ex.Message);
                 MessageBox.Show("Error during startup: " + ex.Message, "Startup error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
@@ -71,20 +67,19 @@ namespace UI
                 _currentEpisodes = new List<PoddAvsnitt>();
                 dgvEpisodes.Rows.Clear();
                 lblEpisodeTitle.Text = "No episodes.";
-                lblEpisodeCount.Text = "Episodes: 0";
+                lblEpisodeCount.Text = "Episodes:0";
                 txtDescription.Clear();
-
-                Log($"Trying to load feed from MongoDB for URL: {url}");
+                UiHelpers.LogTo(txtLog, $"Trying to load feed from MongoDB for URL: {url}");
                 try
                 {
-                    var dbResult = await _dataService.HamtaPoddflodeFranUrlAsync(url);
-                    _currentFlode = dbResult.Flode;
-                    _currentEpisodes = dbResult.Avsnitt ?? new List<PoddAvsnitt>();
+                    var dbResult = await _poddService.FetchFromDatabaseAsync(url);
+                    _currentFlode = dbResult.poddflode;
+                    _currentEpisodes = dbResult.avsnitt ?? new List<PoddAvsnitt>();
                     _currentFlode.IsSaved = true;
                     txtCustomName.Text = _currentFlode.displayName;
                     SyncFeedCategoryFromFeed(_currentFlode);
                     FillEpisodesGrid(_currentEpisodes);
-                    Log($"Loaded {_currentEpisodes.Count} episodes for '{_currentFlode.displayName}' from database.");
+                    UiHelpers.LogTo(txtLog, $"Loaded {_currentEpisodes.Count} episodes for '{_currentFlode.displayName}' from database.");
                     MessageBox.Show(
                         $"Loaded {_currentEpisodes.Count} episodes for '{_currentFlode.displayName}'.",
                         "Loaded", MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -92,33 +87,33 @@ namespace UI
                 }
                 catch (ValidationException vex)
                 {
-                    Log("Not found in DB. Falling back to internet. " + vex.Message);
+                    UiHelpers.LogTo(txtLog, "Not found in DB. Falling back to internet. " + vex.Message);
                 }
 
-                Log($"Fetching feed from Internet: {url}");
+                UiHelpers.LogTo(txtLog, $"Fetching feed from Internet: {url}");
                 var netResult = await _poddService.FetchPoddFeedAsync(url);
                 _currentFlode = netResult.poddflode;
                 _currentEpisodes = netResult.avsnitt ?? new List<PoddAvsnitt>();
                 _currentFlode.IsSaved = false;
                 txtCustomName.Text = _currentFlode.displayName;
-                if (cmbFeedCategory.Items.Count > 0) cmbFeedCategory.SelectedIndex = 0;
+                if (cmbFeedCategory.Items.Count >0) cmbFeedCategory.SelectedIndex =0;
                 FillEpisodesGrid(_currentEpisodes);
                 MessageBox.Show(
                     $"Loaded {_currentEpisodes.Count} episodes for '{_currentFlode.displayName}'.",
                     "Loaded", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                Log($"Loaded {_currentEpisodes.Count} episodes for '{_currentFlode.displayName}' from Internet.");
+                UiHelpers.LogTo(txtLog, $"Loaded {_currentEpisodes.Count} episodes for '{_currentFlode.displayName}' from Internet.");
             }
             catch (ValidationException vex)
             {
                 MessageBox.Show(vex.Message, "Validation error",
                     MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                Log("Validation error while fetching: " + vex.Message);
+                UiHelpers.LogTo(txtLog, "Validation error while fetching: " + vex.Message);
             }
             catch (Exception ex)
             {
                 MessageBox.Show("Error while fetching feed: " + ex.Message, "Technical error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
-                Log("Error while fetching feed: " + ex);
+                UiHelpers.LogTo(txtLog, "Error while fetching feed: " + ex);
             }
         }
 
@@ -129,34 +124,30 @@ namespace UI
                 PoddValidator.EnsureFeedSelected(_currentFlode!);
                 PoddValidator.EnsureFeedNotAlreadySaved(_currentFlode!);
                 PoddValidator.EnsureEpisodesExist(_currentEpisodes);
-
                 var customName = txtCustomName.Text.Trim();
                 PoddValidator.ValidateFeedName(customName);
                 _currentFlode!.displayName = customName;
-
                 foreach (var ep in _currentEpisodes)
                     ep.feedId = _currentFlode.Id!;
-
-                await _dataService.SparaPoddflodeOchAvsnittAsync(_currentFlode, _currentEpisodes);
+                await _poddService.SavePoddSubscriptionAsync(_currentFlode, _currentEpisodes);
                 _currentFlode.IsSaved = true;
                 _currentFlode.SavedAt = DateTime.UtcNow;
-
                 MessageBox.Show("Feed and episodes saved.", "Done",
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
-                Log($"Saved feed '{_currentFlode.displayName}' and {_currentEpisodes.Count} episodes.");
-                LoadSavedFeeds();
+                UiHelpers.LogTo(txtLog, $"Saved feed '{_currentFlode.displayName}' and {_currentEpisodes.Count} episodes.");
+                await LoadSavedFeedsAsync();
             }
             catch (ValidationException vex)
             {
                 MessageBox.Show(vex.Message, "Validation error",
                     MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                Log("Validation error while saving: " + vex.Message);
+                UiHelpers.LogTo(txtLog, "Validation error while saving: " + vex.Message);
             }
             catch (Exception ex)
             {
                 MessageBox.Show("Error while saving: " + ex.Message, "Technical error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
-                Log("Error while saving feed and episodes: " + ex);
+                UiHelpers.LogTo(txtLog, "Error while saving feed and episodes: " + ex);
             }
         }
 
@@ -167,11 +158,9 @@ namespace UI
             cmbFeedCategory.Items.Clear();
             cmbCategoryEdit.Items.Clear();
             lstCategoriesRight.Items.Clear();
-
             cmbCategoryFilter.Items.Add("All categories");
             cmbFeedCategory.Items.Add("(no category)");
             cmbCategoryEdit.Items.Add("(select category)");
-
             foreach (var cat in _allCategories)
             {
                 cmbCategoryFilter.Items.Add(cat);
@@ -179,20 +168,18 @@ namespace UI
                 cmbCategoryEdit.Items.Add(cat);
                 lstCategoriesRight.Items.Add(cat);
             }
-
             cmbCategoryFilter.DisplayMember = "Namn";
             cmbFeedCategory.DisplayMember = "Namn";
             cmbCategoryEdit.DisplayMember = "Namn";
             lstCategoriesRight.DisplayMember = "Namn";
-
-            if (cmbCategoryFilter.Items.Count > 0) cmbCategoryFilter.SelectedIndex = 0;
-            if (cmbFeedCategory.Items.Count > 0) cmbFeedCategory.SelectedIndex = 0;
-            if (cmbCategoryEdit.Items.Count > 0) cmbCategoryEdit.SelectedIndex = 0;
+            if (cmbCategoryFilter.Items.Count >0) cmbCategoryFilter.SelectedIndex =0;
+            if (cmbFeedCategory.Items.Count >0) cmbFeedCategory.SelectedIndex =0;
+            if (cmbCategoryEdit.Items.Count >0) cmbCategoryEdit.SelectedIndex =0;
         }
 
-        private void LoadSavedFeeds()
+        private async Task LoadSavedFeedsAsync()
         {
-            _allSavedFeeds = _dataService.HamtaAllaFloden()?.ToList() ?? new List<Poddflöden>();
+            _allSavedFeeds = await _poddService.GetAllSavedFeedsAsync();
             ApplyCategoryFilter();
         }
 
@@ -201,15 +188,11 @@ namespace UI
             lstPodcasts.DataSource = null;
             lstPodcasts.Items.Clear();
             IEnumerable<Poddflöden> filtered = _allSavedFeeds;
-
             if (cmbCategoryFilter.SelectedItem is Kategori selectedCat)
                 filtered = filtered.Where(f => f.categoryId == selectedCat.Id);
-
             var list = filtered.ToList();
-            if (list.Count == 0)
-            {
+            if (list.Count ==0)
                 lstPodcasts.Items.Add("No podcasts found.");
-            }
             else
             {
                 lstPodcasts.DataSource = list;
@@ -223,36 +206,34 @@ namespace UI
         {
             if (string.IsNullOrEmpty(feed.categoryId))
             {
-                if (cmbFeedCategory.Items.Count > 0) cmbFeedCategory.SelectedIndex = 0;
+                if (cmbFeedCategory.Items.Count >0) cmbFeedCategory.SelectedIndex =0;
                 return;
             }
             var cat = _allCategories.FirstOrDefault(c => c.Id == feed.categoryId);
-            cmbFeedCategory.SelectedItem = cat ?? (cmbFeedCategory.Items.Count > 0 ? cmbFeedCategory.Items[0] : null);
+            cmbFeedCategory.SelectedItem = cat ?? (cmbFeedCategory.Items.Count >0 ? cmbFeedCategory.Items[0] : null);
         }
 
         private async void lstPodcasts_SelectedIndexChanged(object? sender, EventArgs e)
         {
             if (lstPodcasts.SelectedItem is not Poddflöden selected || string.IsNullOrWhiteSpace(selected.rssUrl))
                 return;
-
             _currentFlode = selected;
             txtCustomName.Text = selected.displayName;
             txtRssUrl.Text = selected.rssUrl;
-            Log($"Selected saved podcast: {selected.displayName}");
+            UiHelpers.LogTo(txtLog, $"Selected saved podcast: {selected.displayName}");
             SyncFeedCategoryFromFeed(selected);
-
             try
             {
-                var result = await _dataService.HamtaPoddflodeFranUrlAsync(selected.rssUrl);
-                _currentEpisodes = result.Avsnitt ?? new List<PoddAvsnitt>();
+                var result = await _poddService.FetchFromDatabaseAsync(selected.rssUrl);
+                _currentEpisodes = result.avsnitt ?? new List<PoddAvsnitt>();
                 FillEpisodesGrid(_currentEpisodes);
-                Log($"Loaded {_currentEpisodes.Count} episodes for '{selected.displayName}'.");
+                UiHelpers.LogTo(txtLog, $"Loaded {_currentEpisodes.Count} episodes for '{selected.displayName}'.");
             }
             catch (Exception ex)
             {
                 MessageBox.Show("Error loading episodes: " + ex.Message, "Technical error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
-                Log("Error loading episodes: " + ex);
+                UiHelpers.LogTo(txtLog, "Error loading episodes: " + ex);
             }
         }
 
@@ -261,32 +242,33 @@ namespace UI
             try
             {
                 PoddValidator.EnsureFeedSelected(_currentFlode);
-                var feed = _currentFlode!;
+                if (!_currentFlode!.IsSaved)
+                    throw new ValidationException("Feed must be saved before assigning category.");
                 PoddValidator.EnsureCategorySelected(cmbFeedCategory.SelectedItem as Kategori, "Feed category");
                 var selectedCategory = (Kategori)cmbFeedCategory.SelectedItem!;
-                PoddValidator.EnsureCategoryAssignmentAllowed(feed, selectedCategory);
+                PoddValidator.EnsureCategoryAssignmentAllowed(_currentFlode, selectedCategory);
 
-                await _poddService.AssignCategoryAsync(feed.Id!, selectedCategory.Id);
-                feed.categoryId = selectedCategory.Id;
-                var match = _allSavedFeeds.FirstOrDefault(f => f.Id == feed.Id);
+                await _poddService.AssignCategoryAsync(_currentFlode.Id!, selectedCategory.Id);
+                _currentFlode.categoryId = selectedCategory.Id;
+                var match = _allSavedFeeds.FirstOrDefault(f => f.Id == _currentFlode.Id);
                 if (match != null) match.categoryId = selectedCategory.Id;
 
                 MessageBox.Show($"Category '{selectedCategory.Namn}' assigned.", "Done",
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
-                Log($"Set category '{selectedCategory.Namn}' for '{feed.displayName}'.");
+                UiHelpers.LogTo(txtLog, $"Set category '{selectedCategory.Namn}' for '{_currentFlode.displayName}'.");
                 ApplyCategoryFilter();
             }
             catch (ValidationException vex)
             {
                 MessageBox.Show(vex.Message, "Validation",
                     MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                Log("Validation (set category): " + vex.Message);
+                UiHelpers.LogTo(txtLog, "Validation (set category): " + vex.Message);
             }
             catch (Exception ex)
             {
                 MessageBox.Show("Error setting category: " + ex.Message, "Technical error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
-                Log("Error setting category: " + ex);
+                UiHelpers.LogTo(txtLog, "Error setting category: " + ex);
             }
         }
 
@@ -295,34 +277,36 @@ namespace UI
             try
             {
                 PoddValidator.EnsureFeedSelected(_currentFlode);
+                if (!_currentFlode!.IsSaved)
+                    throw new ValidationException("Feed must be saved before removing category.");
                 PoddValidator.EnsureFeedHasCategory(_currentFlode!);
 
                 var confirm = MessageBox.Show("Remove category from this feed?", "Confirm",
                     MessageBoxButtons.YesNo, MessageBoxIcon.Question);
                 if (confirm == DialogResult.No) return;
 
-                await _poddService.RemoveCategoryAsync(_currentFlode!.Id!);
+                await _poddService.RemoveCategoryAsync(_currentFlode.Id!);
                 _currentFlode.categoryId = string.Empty;
                 var match = _allSavedFeeds.FirstOrDefault(f => f.Id == _currentFlode.Id);
                 if (match != null) match.categoryId = string.Empty;
-                if (cmbFeedCategory.Items.Count > 0) cmbFeedCategory.SelectedIndex = 0;
+                if (cmbFeedCategory.Items.Count >0) cmbFeedCategory.SelectedIndex =0;
 
                 MessageBox.Show("Category removed from feed.", "Done",
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
-                Log($"Removed category from '{_currentFlode.displayName}'.");
+                UiHelpers.LogTo(txtLog, $"Removed category from '{_currentFlode.displayName}'.");
                 ApplyCategoryFilter();
             }
             catch (ValidationException vex)
             {
                 MessageBox.Show(vex.Message, "Validation",
                     MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                Log("Validation (remove category): " + vex.Message);
+                UiHelpers.LogTo(txtLog, "Validation (remove category): " + vex.Message);
             }
             catch (Exception ex)
             {
                 MessageBox.Show("Error removing category: " + ex.Message, "Technical error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
-                Log("Error removing category: " + ex);
+                UiHelpers.LogTo(txtLog, "Error removing category: " + ex);
             }
         }
 
@@ -338,11 +322,10 @@ namespace UI
                 $"Remove feed '{selected.displayName}' and its episodes?",
                 "Confirm feed removal", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
             if (confirm == DialogResult.No) return;
-
             try
             {
-                await _dataService.TaBortSparatFlodeAsync(selected.rssUrl);
-                Log($"Removed feed '{selected.displayName}'.");
+                await _poddService.DeleteFeedAndEpisodesAsync(selected.rssUrl);
+                UiHelpers.LogTo(txtLog, $"Removed feed '{selected.displayName}'.");
                 _allSavedFeeds.Remove(selected);
                 ApplyCategoryFilter();
                 if (_currentFlode?.rssUrl == selected.rssUrl)
@@ -351,7 +334,7 @@ namespace UI
                     _currentEpisodes = new List<PoddAvsnitt>();
                     dgvEpisodes.Rows.Clear();
                     lblEpisodeTitle.Text = "No episodes.";
-                    lblEpisodeCount.Text = "Episodes: 0";
+                    lblEpisodeCount.Text = "Episodes:0";
                     txtDescription.Clear();
                 }
                 MessageBox.Show("Feed removed.", "Done",
@@ -361,7 +344,7 @@ namespace UI
             {
                 MessageBox.Show("Error removing feed: " + ex.Message, "Technical error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
-                Log("Error removing feed: " + ex);
+                UiHelpers.LogTo(txtLog, "Error removing feed: " + ex);
             }
         }
 
@@ -371,30 +354,27 @@ namespace UI
             {
                 if (lstPodcasts.SelectedItem is not Poddflöden selected)
                     throw new ValidationException("Select a feed first.");
-
                 var newName = txtCustomName.Text.Trim();
                 PoddValidator.EnsureFeedRenameValid(selected, newName);
-
-                await _dataService.RenameFeedAsync(selected.Id!, newName);
+                await _poddService.RenameFeedAsync(selected.Id!, newName);
                 selected.displayName = newName;
                 lstPodcasts.DisplayMember = "";
                 lstPodcasts.DisplayMember = "displayName";
-
                 MessageBox.Show("Feed renamed.", "Done",
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
-                Log($"Renamed feed '{selected.Id}' to '{newName}'.");
+                UiHelpers.LogTo(txtLog, $"Renamed feed '{selected.Id}' to '{newName}'.");
             }
             catch (ValidationException vex)
             {
                 MessageBox.Show(vex.Message, "Validation",
                     MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                Log("Validation (rename feed): " + vex.Message);
+                UiHelpers.LogTo(txtLog, "Validation (rename feed): " + vex.Message);
             }
             catch (Exception ex)
             {
                 MessageBox.Show("Error renaming feed: " + ex.Message, "Technical error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
-                Log("Error renaming feed: " + ex);
+                UiHelpers.LogTo(txtLog, "Error renaming feed: " + ex);
             }
         }
 
@@ -404,12 +384,10 @@ namespace UI
             {
                 var name = txtNewCategoryName.Text.Trim();
                 PoddValidator.ValidateCategoryName(name);
-
                 if (_allCategories.Any(c => c.Namn.Equals(name, StringComparison.OrdinalIgnoreCase)))
                     throw new ValidationException($"Category '{name}' already exists.");
-
                 await _categoryService.CreateCategoryAsync(name);
-                Log($"Created category '{name}'.");
+                UiHelpers.LogTo(txtLog, $"Created category '{name}'.");
                 txtNewCategoryName.Clear();
                 await LoadCategoriesAsync();
                 MessageBox.Show("Category created.", "Done",
@@ -419,13 +397,13 @@ namespace UI
             {
                 MessageBox.Show(vex.Message, "Validation",
                     MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                Log("Validation (create category): " + vex.Message);
+                UiHelpers.LogTo(txtLog, "Validation (create category): " + vex.Message);
             }
             catch (Exception ex)
             {
                 MessageBox.Show("Error creating category: " + ex.Message, "Technical error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
-                Log("Error creating category: " + ex);
+                UiHelpers.LogTo(txtLog, "Error creating category: " + ex);
             }
         }
 
@@ -435,17 +413,14 @@ namespace UI
             {
                 if (cmbCategoryEdit.SelectedItem is not Kategori selectedCat)
                     throw new ValidationException("Select a category to rename.");
-
                 var newName = txtEditCategoryName.Text.Trim();
                 PoddValidator.EnsureCategoryRenameValid(selectedCat, newName, _allCategories);
-
                 var confirm = MessageBox.Show(
                     $"Rename '{selectedCat.Namn}' to '{newName}'?",
                     "Confirm rename", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
                 if (confirm == DialogResult.No) return;
-
                 await _categoryService.UpdateCategoryNameAsync(selectedCat.Id, newName);
-                Log($"Renamed category '{selectedCat.Namn}' to '{newName}'.");
+                UiHelpers.LogTo(txtLog, $"Renamed category '{selectedCat.Namn}' to '{newName}'.");
                 txtEditCategoryName.Clear();
                 await LoadCategoriesAsync();
                 MessageBox.Show("Category renamed.", "Done",
@@ -455,13 +430,13 @@ namespace UI
             {
                 MessageBox.Show(vex.Message, "Validation",
                     MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                Log("Validation (rename category): " + vex.Message);
+                UiHelpers.LogTo(txtLog, "Validation (rename category): " + vex.Message);
             }
             catch (Exception ex)
             {
                 MessageBox.Show("Error renaming category: " + ex.Message, "Technical error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
-                Log("Error renaming category: " + ex);
+                UiHelpers.LogTo(txtLog, "Error renaming category: " + ex);
             }
         }
 
@@ -471,14 +446,12 @@ namespace UI
             {
                 PoddValidator.EnsureCategorySelected(cmbCategoryEdit.SelectedItem as Kategori, "Category to delete");
                 var selectedCat = (Kategori)cmbCategoryEdit.SelectedItem!;
-
                 var confirm = MessageBox.Show(
                     $"Delete category '{selectedCat.Namn}'?",
                     "Confirm deletion", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
                 if (confirm == DialogResult.No) return;
-
                 await _categoryService.DeleteCategoryAsync(selectedCat.Id);
-                Log($"Deleted category '{selectedCat.Namn}'.");
+                UiHelpers.LogTo(txtLog, $"Deleted category '{selectedCat.Namn}'.");
                 txtEditCategoryName.Clear();
                 await LoadCategoriesAsync();
                 MessageBox.Show("Category deleted.", "Done",
@@ -488,13 +461,13 @@ namespace UI
             {
                 MessageBox.Show(vex.Message, "Validation",
                     MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                Log("Validation (delete category): " + vex.Message);
+                UiHelpers.LogTo(txtLog, "Validation (delete category): " + vex.Message);
             }
             catch (Exception ex)
             {
                 MessageBox.Show("Error deleting category: " + ex.Message, "Technical error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
-                Log("Error deleting category: " + ex);
+                UiHelpers.LogTo(txtLog, "Error deleting category: " + ex);
             }
         }
 
@@ -503,10 +476,8 @@ namespace UI
             dgvEpisodes.Rows.Clear();
             foreach (var ep in avsnitt)
                 dgvEpisodes.Rows.Add(ep.title, ep.publishDate);
-
             lblEpisodeCount.Text = $"Episodes: {avsnitt.Count}";
-
-            if (dgvEpisodes.Rows.Count > 0)
+            if (dgvEpisodes.Rows.Count >0)
             {
                 dgvEpisodes.ClearSelection();
                 dgvEpisodes.Rows[0].Selected = true;
@@ -524,10 +495,10 @@ namespace UI
         private bool TryGetSelectedEpisode(out PoddAvsnitt ep)
         {
             ep = null!;
-            if (_currentEpisodes.Count == 0) return false;
-            if (dgvEpisodes.SelectedRows.Count == 0) return false;
+            if (_currentEpisodes.Count ==0) return false;
+            if (dgvEpisodes.SelectedRows.Count ==0) return false;
             int index = dgvEpisodes.SelectedRows[0].Index;
-            if (index < 0 || index >= _currentEpisodes.Count) return false;
+            if (index <0 || index >= _currentEpisodes.Count) return false;
             ep = _currentEpisodes[index];
             return true;
         }
@@ -542,7 +513,6 @@ namespace UI
         private void btnOpenExternalLink_Click(object? sender, EventArgs e)
         {
             if (!TryGetSelectedEpisode(out var ep)) return;
-
             if (string.IsNullOrWhiteSpace(ep.link))
             {
                 MessageBox.Show("Episode has no link.", "Info",
@@ -552,154 +522,34 @@ namespace UI
             try
             {
                 Process.Start(new ProcessStartInfo { FileName = ep.link, UseShellExecute = true });
-                Log($"Opened external link for '{ep.title}'.");
+                UiHelpers.LogTo(txtLog, $"Opened external link for '{ep.title}'.");
             }
             catch (Exception ex)
             {
                 MessageBox.Show("Could not open link: " + ex.Message, "Technical error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
-                Log("Error opening link: " + ex);
+                UiHelpers.LogTo(txtLog, "Error opening link: " + ex);
             }
-        }
-
-        private void Log(string message)
-        {
-            var line = $"[{DateTime.Now:HH:mm}] {message}";
-            txtLog.AppendText(line + Environment.NewLine);
         }
 
         private void lblFeedCategory_Click(object sender, EventArgs e) { }
         private void lblCustomName_Click(object sender, EventArgs e) { }
         private void pictureBox1_Click(object sender, EventArgs e) { }
+        private void lblEpisodeCount_Click(object sender, EventArgs e) { }
+        private void lblEpisodeTitle_Click(object sender, EventArgs e) { }
 
         private void ApplyTheme()
         {
-            Color bg = Color.FromArgb(22, 22, 22);
-            Color panelBg = Color.FromArgb(30, 30, 30);
-            Color borderGray = Color.FromArgb(55, 55, 55);
-            Color btnGray = Color.FromArgb(45, 45, 45);
-            Color btnHover = Color.FromArgb(60, 60, 60);
-            Color btnDown = Color.FromArgb(35, 35, 35);
-
-            Color textWhite = Color.WhiteSmoke;
-            Color textGray = Color.FromArgb(200, 200, 200);
-
-            this.BackColor = bg;
-            this.ForeColor = textWhite;
-            this.Font = new Font("Segoe UI", 9F, FontStyle.Regular);
-
-            StyleGroupBox(grpMyPodcasts, panelBg, textGray);
-            StyleGroupBox(grpEpisodes, panelBg, textGray);
-            StyleGroupBox(grpCategories, panelBg, textGray);
-
-            foreach (var lbl in new[]
-            {
-                lblRssUrl, lblCategoryFilter, lblCustomName, lblFeedCategory,
-                lblNewCategory, lblCategoryEdit, lblNewCategoryName
-            })
-            {
-                lbl.ForeColor = textGray;
-            }
-
-            lblEpisodeTitle.ForeColor = textWhite;
-            lblEpisodeTitle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
-
-            lblEpisodeCount.ForeColor = textWhite;
-            lblEpisodeCount.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
-
-            StyleTextBox(txtRssUrl, panelBg, textWhite, borderGray);
-            StyleTextBox(txtCustomName, panelBg, textWhite, borderGray);
-            StyleTextBox(txtNewCategoryName, panelBg, textWhite, borderGray);
-            StyleTextBox(txtEditCategoryName, panelBg, textWhite, borderGray);
-
-            txtDescription.BackColor = bg;
-            txtDescription.ForeColor = textWhite;
-            txtDescription.BorderStyle = BorderStyle.FixedSingle;
-
-            txtLog.BackColor = Color.FromArgb(18, 18, 18);
-            txtLog.ForeColor = Color.FromArgb(210, 210, 210);
-            txtLog.BorderStyle = BorderStyle.FixedSingle;
-
-            StyleListBox(lstPodcasts, bg, textWhite, borderGray);
-            StyleListBox(lstCategoriesRight, bg, textWhite, borderGray);
-
-            StyleComboBox(cmbCategoryFilter, panelBg, textWhite);
-            StyleComboBox(cmbFeedCategory, panelBg, textWhite);
-            StyleComboBox(cmbCategoryEdit, panelBg, textWhite);
-
-            StyleButton(btnFetch, btnGray, btnHover, btnDown, textWhite, borderGray);
-            StyleButton(btnSaveFeed, btnGray, btnHover, btnDown, textWhite, borderGray);
-            StyleButton(btnOpenExternalLink, btnGray, btnHover, btnDown, textWhite, borderGray);
-
-            StyleButton(btnSetCategory, btnGray, btnHover, btnDown, textWhite, borderGray);
-            StyleButton(btnRemoveCategory, btnGray, btnHover, btnDown, textWhite, borderGray);
-            StyleButton(btnDelete, btnGray, btnHover, btnDown, textWhite, borderGray);
-            StyleButton(btnRename, btnGray, btnHover, btnDown, textWhite, borderGray);
-
-            StyleButton(btnCreateCategory, btnGray, btnHover, btnDown, textWhite, borderGray);
-            StyleButton(btnRenameCategory, btnGray, btnHover, btnDown, textWhite, borderGray);
-            StyleButton(btnDeleteCategory, btnGray, btnHover, btnDown, textWhite, borderGray);
-
-            StyleGrid(dgvEpisodes, bg, panelBg, textWhite);
-
-            pictureBox1.BackColor = bg;
+            UiHelpers.ApplyTheme(
+                this,
+                new[] { grpMyPodcasts, grpEpisodes, grpCategories },
+                new[] { lblRssUrl, lblCategoryFilter, lblCustomName, lblFeedCategory, lblNewCategory, lblCategoryEdit, lblNewCategoryName },
+                new[] { txtRssUrl, txtCustomName, txtNewCategoryName, txtEditCategoryName, txtDescription, txtLog },
+                new[] { lstPodcasts, lstCategoriesRight },
+                new[] { cmbCategoryFilter, cmbFeedCategory, cmbCategoryEdit },
+                new[] { btnFetch, btnSaveFeed, btnOpenExternalLink, btnSetCategory, btnRemoveCategory, btnDelete, btnRename, btnCreateCategory, btnRenameCategory, btnDeleteCategory },
+                dgvEpisodes,
+                pictureBox1);
         }
-
-        private void StyleButton(Button btn, Color bg, Color hover, Color down, Color text, Color border)
-        {
-            btn.FlatStyle = FlatStyle.Flat;
-            btn.FlatAppearance.BorderSize = 1;
-            btn.FlatAppearance.BorderColor = border;
-            btn.BackColor = bg;
-            btn.ForeColor = text;
-            btn.FlatAppearance.MouseOverBackColor = hover;
-            btn.FlatAppearance.MouseDownBackColor = down;
-            btn.Cursor = Cursors.Hand;
-        }
-
-        private void StyleGroupBox(GroupBox g, Color bg, Color text)
-        {
-            g.BackColor = bg;
-            g.ForeColor = text;
-        }
-
-        private void StyleListBox(ListBox lst, Color bg, Color text, Color border)
-        {
-            lst.BackColor = bg;
-            lst.ForeColor = text;
-            lst.BorderStyle = BorderStyle.FixedSingle;
-        }
-
-        private void StyleComboBox(ComboBox cmb, Color bg, Color text)
-        {
-            cmb.BackColor = bg;
-            cmb.ForeColor = text;
-            cmb.FlatStyle = FlatStyle.Flat;
-        }
-
-        private void StyleTextBox(TextBox txt, Color bg, Color text, Color border)
-        {
-            txt.BackColor = bg;
-            txt.ForeColor = text;
-            txt.BorderStyle = BorderStyle.FixedSingle;
-        }
-
-        private void StyleGrid(DataGridView dgv, Color bg, Color headerBg, Color text)
-        {
-            dgv.BackgroundColor = bg;
-            dgv.BorderStyle = BorderStyle.None;
-            dgv.EnableHeadersVisualStyles = false;
-            dgv.ColumnHeadersDefaultCellStyle.BackColor = headerBg;
-            dgv.ColumnHeadersDefaultCellStyle.ForeColor = text;
-            dgv.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
-            dgv.DefaultCellStyle.BackColor = bg;
-            dgv.DefaultCellStyle.ForeColor = text;
-            dgv.DefaultCellStyle.SelectionBackColor = Color.FromArgb(50, 50, 50);
-            dgv.DefaultCellStyle.SelectionForeColor = Color.White;
-            dgv.GridColor = Color.FromArgb(60, 60, 60);
-        }
-
-        private void lblEpisodeCount_Click(object sender, EventArgs e) { }
-        private void lblEpisodeTitle_Click(object sender, EventArgs e) { }
     }
 }

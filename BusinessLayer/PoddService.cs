@@ -3,12 +3,15 @@ using OruMongoDB.BusinessLayer.Exceptions;
 using OruMongoDB.BusinessLayer.Rss;
 using OruMongoDB.Domain;
 using OruMongoDB.Infrastructure;
+using OruMongoDB.Core.Validation;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using System.ComponentModel.DataAnnotations;
 
 namespace OruMongoDB.BusinessLayer
 {
+    // NOTE: Kontrollera att samtliga collection-namn är konsekventa ("Poddfloden" vs "Poddflöden"). Fel namn gör att feeds inte hittas.
     /// <summary>
     /// High-level service for working with podcast feeds:
     /// - Fetch feed + episodes from an RSS URL
@@ -24,10 +27,30 @@ namespace OruMongoDB.BusinessLayer
         Task<(Poddflöden poddflode, List<PoddAvsnitt> avsnitt)> FetchPoddFeedAsync(string rssUrl);
 
         /// <summary>
+        /// Fetches a podcast feed and its episodes from the database by RSS URL.
+        /// </summary>
+        Task<(Poddflöden poddflode, List<PoddAvsnitt> avsnitt)> FetchFromDatabaseAsync(string rssUrl);
+
+        /// <summary>
         /// Saves the given feed and its episodes as a subscription in MongoDB
         /// using a single ACID transaction.
         /// </summary>
         Task SavePoddSubscriptionAsync(Poddflöden poddflode, List<PoddAvsnitt> avsnittList);
+
+        /// <summary>
+        /// Returns all saved podcast feeds from the database.
+        /// </summary>
+        Task<List<Poddflöden>> GetAllSavedFeedsAsync();
+
+        /// <summary>
+        /// Deletes a podcast feed and its episodes from the database.
+        /// </summary>
+        Task DeleteFeedAndEpisodesAsync(string rssUrl);
+
+        /// <summary>
+        /// Renames an existing podcast feed.
+        /// </summary>
+        Task RenameFeedAsync(string id, string newName);
 
         /// <summary>
         /// Assigns a category to an existing feed.
@@ -67,31 +90,14 @@ namespace OruMongoDB.BusinessLayer
         /// <inheritdoc />
         public async Task<(Poddflöden poddflode, List<PoddAvsnitt> avsnitt)> FetchPoddFeedAsync(string rssUrl)
         {
+            PoddValidator.ValidateRssUrl(rssUrl);
+
             try
             {
-                if (string.IsNullOrWhiteSpace(rssUrl))
-                {
-                    throw new ServiceException("RSS URL cannot be empty.");
-                }
-
-                if (!Uri.TryCreate(rssUrl, UriKind.Absolute, out var uri) ||
-                    (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
-                {
-                    throw new ServiceException($"The given RSS URL '{rssUrl}' is not valid (must be http or https).");
-                }
-
-                // Let the RSS parser do the actual HTTP + XML work
                 return await _rssParser.FetchAndParseAsync(rssUrl);
-            }
-            catch (ServiceException)
-            {
-                // Already a domain-specific error – just bubble it up
-                throw;
             }
             catch (Exception ex)
             {
-                // Wrap any unexpected error into a ServiceException so the UI
-                // can show a friendly message without crashing.
                 throw new ServiceException(
                     $"Could not fetch or parse the podcast feed from URL '{rssUrl}'.",
                     ex);
@@ -99,27 +105,43 @@ namespace OruMongoDB.BusinessLayer
         }
 
         /// <inheritdoc />
+        public async Task<(Poddflöden poddflode, List<PoddAvsnitt> avsnitt)> FetchFromDatabaseAsync(string rssUrl)
+        {
+            PoddValidator.ValidateRssUrl(rssUrl);
+
+            var existing = await _poddRepo.GetByUrlAsync(rssUrl);
+            if (existing == null)
+                throw new ValidationException($"No podcast feed found in database with RSS URL: {rssUrl}");
+
+            var episodes = await _avsnittRepo.GetByFeedIdAsync(existing.Id!);
+            return (existing, episodes);
+        }
+
+        /// <inheritdoc />
         public async Task SavePoddSubscriptionAsync(Poddflöden poddflode, List<PoddAvsnitt> avsnittList)
         {
-            if (poddflode == null)
-                throw new ServiceException("Feed object may not be null.");
+            if (poddflode == null) throw new ServiceException("Feed object may not be null.");
+            if (avsnittList == null) throw new ServiceException("Episode list may not be null.");
 
-            if (avsnittList == null)
-                throw new ServiceException("Episode list may not be null.");
+            PoddValidator.ValidateRssUrl(poddflode.rssUrl);
+            PoddValidator.ValidateFeedName(poddflode.displayName);
+            PoddValidator.EnsureEpisodesExist(avsnittList);
 
             // Check for duplicate subscription by RSS URL
             var existingPodd = await _poddRepo.GetByUrlAsync(poddflode.rssUrl);
             if (existingPodd != null)
-            {
                 throw new ServiceException(
                     $"The feed with URL '{poddflode.rssUrl}' is already saved in the database.");
-            }
 
             using var session = await _client.StartSessionAsync();
             session.StartTransaction();
 
             try
             {
+                // mark as saved BEFORE insert so persisted document contains correct values
+                poddflode.IsSaved = true;
+                poddflode.SavedAt = DateTime.UtcNow;
+
                 // 1) Insert the feed
                 await _poddRepo.AddAsync(session, poddflode);
 
@@ -127,7 +149,7 @@ namespace OruMongoDB.BusinessLayer
                 var newFeedId = poddflode.Id;
                 foreach (var ep in avsnittList)
                 {
-                    ep.feedId = newFeedId;
+                    ep.feedId = newFeedId!;
                 }
 
                 // 3) Insert all episodes (if any) in the same transaction
@@ -151,6 +173,85 @@ namespace OruMongoDB.BusinessLayer
         }
 
         /// <inheritdoc />
+        public async Task<List<Poddflöden>> GetAllSavedFeedsAsync()
+        {
+            var all = await _poddRepo.GetAllAsync();
+            var list = new List<Poddflöden>();
+            foreach (var f in all)
+            {
+                if (f.IsSaved) list.Add(f);
+            }
+
+            return list;
+        }
+
+        /// <inheritdoc />
+        public async Task DeleteFeedAndEpisodesAsync(string rssUrl)
+        {
+            PoddValidator.ValidateRssUrl(rssUrl);
+
+            using var session = await _client.StartSessionAsync();
+            session.StartTransaction();
+
+            try
+            {
+                var feed = await _poddRepo.GetByUrlAsync(session, rssUrl);
+                if (feed == null)
+                    throw new ValidationException($"No podcast feed found with RSS URL: {rssUrl}");
+
+                await _avsnittRepo.DeleteByFeedIdAsync(session, feed.Id!);
+                await _poddRepo.DeleteByIdAsync(session, feed.Id!);
+
+                await session.CommitTransactionAsync();
+            }
+            catch (Exception ex)
+            {
+                await session.AbortTransactionAsync();
+
+                if (ex is ValidationException) throw;
+
+                throw new ServiceException(
+                    "Could not delete feed and episodes in a transaction.",
+                    ex);
+            }
+        }
+
+        /// <inheritdoc />
+        public async Task RenameFeedAsync(string id, string newName)
+        {
+            if (string.IsNullOrWhiteSpace(id))
+                throw new ValidationException("Feed ID cannot be empty.");
+
+            var existing = await _poddRepo.GetByIdAsync(id);
+            if (existing == null)
+                throw new ValidationException($"Could not find feed with id '{id}'.");
+
+            PoddValidator.EnsureFeedRenameValid(existing, newName);
+
+            using var session = await _client.StartSessionAsync();
+            session.StartTransaction();
+
+            try
+            {
+                existing.displayName = newName.Trim();
+
+                await _poddRepo.UpdateAsync(session, id, existing);
+
+                await session.CommitTransactionAsync();
+            }
+            catch (Exception ex)
+            {
+                await session.AbortTransactionAsync();
+
+                if (ex is ValidationException) throw;
+
+                throw new ServiceException(
+                    "Could not rename feed in a transaction.",
+                    ex);
+            }
+        }
+
+        /// <inheritdoc />
         public async Task AssignCategoryAsync(string poddId, string categoryId)
         {
             if (string.IsNullOrWhiteSpace(poddId))
@@ -162,6 +263,11 @@ namespace OruMongoDB.BusinessLayer
             {
                 throw new ServiceException("Category ID cannot be empty.");
             }
+
+            // säkerställ att feeden är sparad
+            var existing = await _poddRepo.GetByIdAsync(poddId);
+            if (existing == null || !existing.IsSaved)
+                throw new ValidationException("Feed must be saved before assigning category.");
 
             using var session = await _client.StartSessionAsync();
             session.StartTransaction();
@@ -189,6 +295,10 @@ namespace OruMongoDB.BusinessLayer
             {
                 throw new ServiceException("Feed ID cannot be empty.");
             }
+
+            var existing = await _poddRepo.GetByIdAsync(poddId);
+            if (existing == null || !existing.IsSaved)
+                throw new ValidationException("Feed must be saved before removing category.");
 
             using var session = await _client.StartSessionAsync();
             session.StartTransaction();

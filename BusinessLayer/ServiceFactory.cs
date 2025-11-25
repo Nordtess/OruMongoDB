@@ -23,10 +23,5 @@ namespace OruMongoDB.BusinessLayer
             var categoryRepo = new CategoryRepository(db);
             return new CategoryService(categoryRepo, connector);
         }
-
-        public static PodcastDataService CreatePodcastDataService()
-        {
-            return new PodcastDataService();
-        }
     }
 }
