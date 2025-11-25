@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using OruMongoDB.BusinessLayer;
 using OruMongoDB.Domain;
-using OruMongoDB.Core.Validation;
+using UI;
 using System.Drawing;
 using UI;
 

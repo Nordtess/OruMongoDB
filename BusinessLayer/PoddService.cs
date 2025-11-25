@@ -3,7 +3,6 @@ using OruMongoDB.BusinessLayer.Exceptions;
 using OruMongoDB.BusinessLayer.Rss;
 using OruMongoDB.Domain;
 using OruMongoDB.Infrastructure;
-using OruMongoDB.Core.Validation;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -87,10 +86,31 @@ namespace OruMongoDB.BusinessLayer
                       ?? throw new ServiceException("Could not obtain MongoDB client instance.");
         }
 
+        private static void ValidateRssUrlInternal(string rssUrl)
+        {
+            if (string.IsNullOrWhiteSpace(rssUrl))
+                throw new ValidationException("RSS URL must not be empty.");
+
+            if (!Uri.TryCreate(rssUrl, UriKind.Absolute, out var uri) ||
+                (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+            {
+                throw new ValidationException("RSS URL is not valid (must start with http or https).");
+            }
+        }
+
+        private static void ValidateFeedNameInternal(string name)
+        {
+            if (string.IsNullOrWhiteSpace(name))
+                throw new ValidationException("Feed name cannot be empty.");
+
+            if (name.Length > 200)
+                throw new ValidationException("Feed name is too long (max 200 characters).");
+        }
+
         /// <inheritdoc />
         public async Task<(Poddflöden poddflode, List<PoddAvsnitt> avsnitt)> FetchPoddFeedAsync(string rssUrl)
         {
-            PoddValidator.ValidateRssUrl(rssUrl);
+            ValidateRssUrlInternal(rssUrl);
 
             try
             {
@@ -107,7 +127,7 @@ namespace OruMongoDB.BusinessLayer
         /// <inheritdoc />
         public async Task<(Poddflöden poddflode, List<PoddAvsnitt> avsnitt)> FetchFromDatabaseAsync(string rssUrl)
         {
-            PoddValidator.ValidateRssUrl(rssUrl);
+            ValidateRssUrlInternal(rssUrl);
 
             var existing = await _poddRepo.GetByUrlAsync(rssUrl);
             if (existing == null)
@@ -123,9 +143,9 @@ namespace OruMongoDB.BusinessLayer
             if (poddflode == null) throw new ServiceException("Feed object may not be null.");
             if (avsnittList == null) throw new ServiceException("Episode list may not be null.");
 
-            PoddValidator.ValidateRssUrl(poddflode.rssUrl);
-            PoddValidator.ValidateFeedName(poddflode.displayName);
-            PoddValidator.EnsureEpisodesExist(avsnittList);
+            ValidateRssUrlInternal(poddflode.rssUrl);
+            ValidateFeedNameInternal(poddflode.displayName);
+            if (avsnittList.Count == 0) throw new ValidationException("There are no episodes to operate on.");
 
             // Check for duplicate subscription by RSS URL
             var existingPodd = await _poddRepo.GetByUrlAsync(poddflode.rssUrl);
@@ -188,7 +208,7 @@ namespace OruMongoDB.BusinessLayer
         /// <inheritdoc />
         public async Task DeleteFeedAndEpisodesAsync(string rssUrl)
         {
-            PoddValidator.ValidateRssUrl(rssUrl);
+            ValidateRssUrlInternal(rssUrl);
 
             using var session = await _client.StartSessionAsync();
             session.StartTransaction();
@@ -222,11 +242,14 @@ namespace OruMongoDB.BusinessLayer
             if (string.IsNullOrWhiteSpace(id))
                 throw new ValidationException("Feed ID cannot be empty.");
 
+            ValidateFeedNameInternal(newName);
+
             var existing = await _poddRepo.GetByIdAsync(id);
             if (existing == null)
                 throw new ValidationException($"Could not find feed with id '{id}'.");
 
-            PoddValidator.EnsureFeedRenameValid(existing, newName);
+            if (string.Equals(existing.displayName, newName, StringComparison.Ordinal))
+                throw new ValidationException("The new feed name is the same as the current name.");
 
             using var session = await _client.StartSessionAsync();
             session.StartTransaction();

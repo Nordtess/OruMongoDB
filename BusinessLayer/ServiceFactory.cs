@@ -1,4 +1,3 @@
-using OruMongoDB.Core;
 using OruMongoDB.Infrastructure;
 using OruMongoDB.BusinessLayer.Rss;
 
