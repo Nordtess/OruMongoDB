@@ -26,8 +26,8 @@ namespace UI
         private DataGridView dgvEpisodes;
         private DataGridViewTextBoxColumn colTitle;
         private DataGridViewTextBoxColumn colPublishDate;
-        private DataGridViewTextBoxColumn colDuration;
         private Label lblEpisodeTitle;
+        private Label lblEpisodeCount;
         private TextBox txtDescription;
         private Button btnOpenExternalLink;
 
@@ -46,6 +46,7 @@ namespace UI
         private TextBox txtLog;
         private Label lblRssUrl;
         private Label lblCustomName;
+        private PictureBox pictureBox1;
 
         protected override void Dispose(bool disposing)
         {
@@ -75,8 +76,8 @@ namespace UI
             dgvEpisodes = new DataGridView();
             colTitle = new DataGridViewTextBoxColumn();
             colPublishDate = new DataGridViewTextBoxColumn();
-            colDuration = new DataGridViewTextBoxColumn();
             lblEpisodeTitle = new Label();
+            lblEpisodeCount = new Label();
             txtDescription = new TextBox();
             btnOpenExternalLink = new Button();
             grpCategories = new GroupBox();
@@ -255,6 +256,7 @@ namespace UI
             grpEpisodes.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
             grpEpisodes.Controls.Add(dgvEpisodes);
             grpEpisodes.Controls.Add(lblEpisodeTitle);
+            grpEpisodes.Controls.Add(lblEpisodeCount);
             grpEpisodes.Controls.Add(txtDescription);
             grpEpisodes.Controls.Add(btnOpenExternalLink);
             grpEpisodes.Location = new Point(280, 80);
@@ -269,7 +271,7 @@ namespace UI
             dgvEpisodes.AllowUserToAddRows = false;
             dgvEpisodes.AllowUserToDeleteRows = false;
             dgvEpisodes.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
-            dgvEpisodes.Columns.AddRange(new DataGridViewColumn[] { colTitle, colPublishDate, colDuration });
+            dgvEpisodes.Columns.AddRange(new DataGridViewColumn[] { colTitle, colPublishDate });
             dgvEpisodes.Location = new Point(10, 22);
             dgvEpisodes.MultiSelect = false;
             dgvEpisodes.Name = "dgvEpisodes";
@@ -294,22 +296,26 @@ namespace UI
             colPublishDate.ReadOnly = true;
             colPublishDate.Width = 110;
             // 
-            // colDuration
-            // 
-            colDuration.HeaderText = "Duration";
-            colDuration.Name = "colDuration";
-            colDuration.ReadOnly = true;
-            colDuration.Width = 80;
-            // 
             // lblEpisodeTitle
             // 
             lblEpisodeTitle.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
             lblEpisodeTitle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
             lblEpisodeTitle.Location = new Point(10, 250);
             lblEpisodeTitle.Name = "lblEpisodeTitle";
-            lblEpisodeTitle.Size = new Size(510, 20);
+            lblEpisodeTitle.Size = new Size(390, 20);
             lblEpisodeTitle.TabIndex = 1;
             lblEpisodeTitle.Text = "No episodes.";
+            // 
+            // lblEpisodeCount
+            // 
+            lblEpisodeCount.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            lblEpisodeCount.Font = new Font("Segoe UI", 9F);
+            lblEpisodeCount.Location = new Point(400, 250);
+            lblEpisodeCount.Name = "lblEpisodeCount";
+            lblEpisodeCount.Size = new Size(120, 20);
+            lblEpisodeCount.TabIndex = 4;
+            lblEpisodeCount.Text = "Episodes: 0";
+            lblEpisodeCount.TextAlign = ContentAlignment.MiddleRight;
             // 
             // txtDescription
             // 
@@ -465,9 +471,9 @@ namespace UI
             // 
             pictureBox1.Cursor = Cursors.Hand;
             pictureBox1.Image = Properties.Resources.pmlogo;
-            pictureBox1.Location = new Point(917, 12);
+            pictureBox1.Location = new Point(584, 3);
             pictureBox1.Name = "pictureBox1";
-            pictureBox1.Size = new Size(263, 84);
+            pictureBox1.Size = new Size(114, 84);
             pictureBox1.SizeMode = PictureBoxSizeMode.Zoom;
             pictureBox1.TabIndex = 0;
             pictureBox1.TabStop = false;
@@ -501,6 +507,5 @@ namespace UI
             ResumeLayout(false);
             PerformLayout();
         }
-        private PictureBox pictureBox1;
     }
 }

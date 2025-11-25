@@ -73,6 +73,7 @@ namespace UI
                 _currentEpisodes = new List<PoddAvsnitt>();
                 dgvEpisodes.Rows.Clear();
                 lblEpisodeTitle.Text = "No episodes.";
+                lblEpisodeCount.Text = "Episodes: 0";
                 txtDescription.Clear();
 
                 Log($"Trying to load feed from MongoDB for URL: {url}");
@@ -357,6 +358,7 @@ namespace UI
                     _currentEpisodes = new List<PoddAvsnitt>();
                     dgvEpisodes.Rows.Clear();
                     lblEpisodeTitle.Text = "No episodes.";
+                    lblEpisodeCount.Text = "Episodes: 0";
                     txtDescription.Clear();
                 }
                 MessageBox.Show("Feed removed.", "Done",
@@ -507,7 +509,9 @@ namespace UI
         {
             dgvEpisodes.Rows.Clear();
             foreach (var ep in avsnitt)
-                dgvEpisodes.Rows.Add(ep.title, ep.publishDate, string.Empty);
+                dgvEpisodes.Rows.Add(ep.title, ep.publishDate);
+
+            lblEpisodeCount.Text = $"Episodes: {avsnitt.Count}";
 
             if (dgvEpisodes.Rows.Count > 0)
             {
@@ -609,7 +613,7 @@ namespace UI
             foreach (var lbl in new[]
             {
         lblRssUrl, lblCategoryFilter, lblCustomName, lblFeedCategory,
-        lblNewCategory, lblCategoryEdit, lblNewCategoryName, lblEpisodeTitle
+        lblNewCategory, lblCategoryEdit, lblNewCategoryName, lblEpisodeTitle, lblEpisodeCount
     })
             {
                 lbl.ForeColor = textGray;
@@ -640,7 +644,7 @@ namespace UI
             StyleComboBox(cmbFeedCategory, panelBg, textWhite);
             StyleComboBox(cmbCategoryEdit, panelBg, textWhite);
 
-            // 🔘 Knappar (alla identiska, neutrala, clean)
+            // 🔘 Knappar
             StyleButton(btnFetch, btnGray, btnHover, btnDown, textWhite, borderGray);
             StyleButton(btnSaveFeed, btnGray, btnHover, btnDown, textWhite, borderGray);
             StyleButton(btnOpenExternalLink, btnGray, btnHover, btnDown, textWhite, borderGray);
@@ -654,7 +658,7 @@ namespace UI
             StyleButton(btnRenameCategory, btnGray, btnHover, btnDown, textWhite, borderGray);
             StyleButton(btnDeleteCategory, btnGray, btnHover, btnDown, textWhite, borderGray);
 
-            // 📊 DataGridView — inget färgtema, bara grått & vitt
+            // 📊 DataGridView
             StyleGrid(dgvEpisodes, bg, panelBg, textWhite);
 
             pictureBox1.BackColor = bg;
@@ -714,15 +718,10 @@ namespace UI
 
             dgv.DefaultCellStyle.BackColor = bg;
             dgv.DefaultCellStyle.ForeColor = text;
-            dgv.DefaultCellStyle.SelectionBackColor = Color.FromArgb(50, 50, 50); // mjuk markering
+            dgv.DefaultCellStyle.SelectionBackColor = Color.FromArgb(50, 50, 50);
             dgv.DefaultCellStyle.SelectionForeColor = Color.White;
 
             dgv.GridColor = Color.FromArgb(60, 60, 60);
         }
-
-
-
-
-
     }
 }
