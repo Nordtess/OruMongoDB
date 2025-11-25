@@ -106,13 +106,13 @@ namespace UI
             txtRssUrl.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
             txtRssUrl.Location = new Point(70, 12);
             txtRssUrl.Name = "txtRssUrl";
-            txtRssUrl.Size = new Size(316, 23);
+            txtRssUrl.Size = new Size(262, 23);
             txtRssUrl.TabIndex = 1;
             // 
             // btnFetch
             // 
             btnFetch.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            btnFetch.Location = new Point(392, 12);
+            btnFetch.Location = new Point(338, 12);
             btnFetch.Name = "btnFetch";
             btnFetch.Size = new Size(90, 25);
             btnFetch.TabIndex = 2;
@@ -130,7 +130,7 @@ namespace UI
             // btnSaveFeed
             // 
             btnSaveFeed.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            btnSaveFeed.Location = new Point(488, 12);
+            btnSaveFeed.Location = new Point(434, 12);
             btnSaveFeed.Name = "btnSaveFeed";
             btnSaveFeed.Size = new Size(90, 25);
             btnSaveFeed.TabIndex = 5;
@@ -472,10 +472,10 @@ namespace UI
             // pictureBox1
             // 
             pictureBox1.Cursor = Cursors.Hand;
-            pictureBox1.Image = Properties.Resources.pmlogo;
-            pictureBox1.Location = new Point(584, 3);
+            pictureBox1.Image = Properties.Resources.loggo4;
+            pictureBox1.Location = new Point(558, -10);
             pictureBox1.Name = "pictureBox1";
-            pictureBox1.Size = new Size(114, 84);
+            pictureBox1.Size = new Size(140, 106);
             pictureBox1.SizeMode = PictureBoxSizeMode.Zoom;
             pictureBox1.TabIndex = 0;
             pictureBox1.TabStop = false;
