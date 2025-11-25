@@ -73,5 +73,19 @@ namespace OruMongoDB.Core.Validation
             if (feed.categoryId == category.Id)
                 throw new ValidationException("Feed already has this category.");
         }
+
+        
+        public static void EnsureEpisodesExist(IEnumerable<PoddAvsnitt> episodes)
+        {
+            if (episodes == null || !episodes.Any())
+                throw new ValidationException("There are no episodes to operate on.");
+        }
+
+        
+        public static void EnsureFeedHasCategory(Poddflöden feed)
+        {
+            if (string.IsNullOrWhiteSpace(feed.categoryId))
+                throw new ValidationException("Feed has no category to remove.");
+        }
     }
 }

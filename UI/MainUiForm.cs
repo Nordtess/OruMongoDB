@@ -60,9 +60,13 @@ namespace UI
         private async void btnFetch_Click(object? sender, EventArgs e)
         {
             var url = txtRssUrl.Text.Trim();
-            if (string.IsNullOrWhiteSpace(url))
+            try
             {
-                MessageBox.Show("Please enter an RSS URL first.", "Validation",
+                PoddValidator.ValidateRssUrl(url);
+            }
+            catch (ValidationException vex)
+            {
+                MessageBox.Show(vex.Message, "Validation",
                     MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
@@ -82,7 +86,7 @@ namespace UI
                     var dbResult = await _jamieService.HamtaPoddflodeFranUrlAsync(url);
                     _currentFlode = dbResult.Flode;
                     _currentEpisodes = dbResult.Avsnitt ?? new List<PoddAvsnitt>();
-                    _currentFlode.IsSaved = true; // mark as already persisted
+                    _currentFlode.IsSaved = true;
                     txtCustomName.Text = _currentFlode.displayName;
                     SyncFeedCategoryFromFeed(_currentFlode);
                     FillEpisodesGrid(_currentEpisodes);
@@ -128,17 +132,13 @@ namespace UI
         {
             try
             {
-                if (_currentFlode == null)
-                    throw new ValidationException("No feed has been loaded yet.");
-
-                PoddValidator.EnsureFeedNotAlreadySaved(_currentFlode);
-
-                if (_currentEpisodes.Count == 0)
-                    throw new ValidationException("There are no episodes to save.");
+                PoddValidator.EnsureFeedSelected(_currentFlode!);
+                PoddValidator.EnsureFeedNotAlreadySaved(_currentFlode!);
+                PoddValidator.EnsureEpisodesExist(_currentEpisodes);
 
                 var customName = txtCustomName.Text.Trim();
                 PoddValidator.ValidateFeedName(customName);
-                _currentFlode.displayName = customName;
+                _currentFlode!.displayName = customName;
 
                 foreach (var ep in _currentEpisodes)
                     ep.feedId = _currentFlode.Id!;
@@ -301,15 +301,13 @@ namespace UI
             try
             {
                 PoddValidator.EnsureFeedSelected(_currentFlode);
-                if (string.IsNullOrWhiteSpace(_currentFlode!.categoryId))
-                    throw new ValidationException("Feed has no category to remove.");
+                PoddValidator.EnsureFeedHasCategory(_currentFlode!);
 
                 var confirm = MessageBox.Show("Remove category from this feed?", "Confirm",
                     MessageBoxButtons.YesNo, MessageBoxIcon.Question);
                 if (confirm == DialogResult.No) return;
 
-                
-                await _poddService.RemoveCategoryAsync(_currentFlode.Id!);
+                await _poddService.RemoveCategoryAsync(_currentFlode!.Id!);
                 _currentFlode.categoryId = string.Empty;
                 var match = _allSavedFeeds.FirstOrDefault(f => f.Id == _currentFlode.Id);
                 if (match != null) match.categoryId = string.Empty;
@@ -362,7 +360,7 @@ namespace UI
                     lblEpisodeCount.Text = "Episodes: 0";
                     txtDescription.Clear();
                 }
-                MessageBox.Show("Feed removed.", "Done",
+                MessageBox.Show("Feed removed.", "Done",    
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
             catch (Exception ex)
@@ -477,8 +475,8 @@ namespace UI
         {
             try
             {
-                if (cmbCategoryEdit.SelectedItem is not Kategori selectedCat)
-                    throw new ValidationException("Select a category to delete.");
+                PoddValidator.EnsureCategorySelected(cmbCategoryEdit.SelectedItem as Kategori, "Category to delete");
+                var selectedCat = (Kategori)cmbCategoryEdit.SelectedItem!;
 
                 var confirm = MessageBox.Show(
                     $"Delete category '{selectedCat.Namn}'?",
@@ -529,24 +527,28 @@ namespace UI
 
         private void dgvEpisodes_SelectionChanged(object? sender, EventArgs e) => UpdateEpisodeDetailsFromGrid();
 
+        private bool TryGetSelectedEpisode(out PoddAvsnitt ep)
+        {
+            ep = null!;
+            if (_currentEpisodes.Count == 0) return false;
+            if (dgvEpisodes.SelectedRows.Count == 0) return false;
+            int index = dgvEpisodes.SelectedRows[0].Index;
+            if (index < 0 || index >= _currentEpisodes.Count) return false;
+            ep = _currentEpisodes[index];
+            return true;
+        }
+
         private void UpdateEpisodeDetailsFromGrid()
         {
-            if (_currentEpisodes.Count == 0) return;
-            if (dgvEpisodes.SelectedRows.Count == 0) return;
-            int index = dgvEpisodes.SelectedRows[0].Index;
-            if (index < 0 || index >= _currentEpisodes.Count) return;
-            var ep = _currentEpisodes[index];
+            if (!TryGetSelectedEpisode(out var ep)) return;
             lblEpisodeTitle.Text = ep.title;
             txtDescription.Text = $"Title: {ep.title}\r\nPublished: {ep.publishDate}\r\n\r\n{ep.description}";
         }
 
         private void btnOpenExternalLink_Click(object? sender, EventArgs e)
         {
-            if (_currentEpisodes.Count == 0) return;
-            if (dgvEpisodes.SelectedRows.Count == 0) return;
-            int index = dgvEpisodes.SelectedRows[0].Index;
-            if (index < 0 || index >= _currentEpisodes.Count) return;
-            var ep = _currentEpisodes[index];
+            if (!TryGetSelectedEpisode(out var ep)) return;
+
             if (string.IsNullOrWhiteSpace(ep.link))
             {
                 MessageBox.Show("Episode has no link.", "Info",
@@ -572,26 +574,14 @@ namespace UI
             txtLog.AppendText(line + Environment.NewLine);
         }
 
-        private void lblFeedCategory_Click(object sender, EventArgs e)
-        {
-
-        }
-
-        private void lblCustomName_Click(object sender, EventArgs e)
-        {
-
-        }
-
-        private void pictureBox1_Click(object sender, EventArgs e)
-        {
-            // no-op – reverted image loading
-        }
+        private void lblFeedCategory_Click(object sender, EventArgs e) { }
+        private void lblCustomName_Click(object sender, EventArgs e) { }
+        private void pictureBox1_Click(object sender, EventArgs e) { }
 
         private void ApplyTheme()
         {
-            // 🎨 Basfärgskala
-            Color bg = Color.FromArgb(22, 22, 22);       // Form bakgrund (kolsvart)
-            Color panelBg = Color.FromArgb(30, 30, 30);  // Lätt ljusare panel
+            Color bg = Color.FromArgb(22, 22, 22);
+            Color panelBg = Color.FromArgb(30, 30, 30);
             Color borderGray = Color.FromArgb(55, 55, 55);
             Color btnGray = Color.FromArgb(45, 45, 45);
             Color btnHover = Color.FromArgb(60, 60, 60);
@@ -600,17 +590,14 @@ namespace UI
             Color textWhite = Color.WhiteSmoke;
             Color textGray = Color.FromArgb(200, 200, 200);
 
-            // 🖥️ Form
             this.BackColor = bg;
             this.ForeColor = textWhite;
             this.Font = new Font("Segoe UI", 9F, FontStyle.Regular);
 
-            // 🧱 GroupBoxes
             StyleGroupBox(grpMyPodcasts, panelBg, textGray);
             StyleGroupBox(grpEpisodes, panelBg, textGray);
             StyleGroupBox(grpCategories, panelBg, textGray);
 
-            // 📋 Labels (alla vanliga labels = ljusgrå)
             foreach (var lbl in new[]
             {
                 lblRssUrl, lblCategoryFilter, lblCustomName, lblFeedCategory,
@@ -620,14 +607,12 @@ namespace UI
                 lbl.ForeColor = textGray;
             }
 
-            // Titel + räknare ska vara mer framträdande (vit + bold)
             lblEpisodeTitle.ForeColor = textWhite;
             lblEpisodeTitle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
 
             lblEpisodeCount.ForeColor = textWhite;
             lblEpisodeCount.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
 
-            // ✏️ TextBoxar
             StyleTextBox(txtRssUrl, panelBg, textWhite, borderGray);
             StyleTextBox(txtCustomName, panelBg, textWhite, borderGray);
             StyleTextBox(txtNewCategoryName, panelBg, textWhite, borderGray);
@@ -641,16 +626,13 @@ namespace UI
             txtLog.ForeColor = Color.FromArgb(210, 210, 210);
             txtLog.BorderStyle = BorderStyle.FixedSingle;
 
-            // 📜 Listboxes
             StyleListBox(lstPodcasts, bg, textWhite, borderGray);
             StyleListBox(lstCategoriesRight, bg, textWhite, borderGray);
 
-            // 🔽 ComboBoxes
             StyleComboBox(cmbCategoryFilter, panelBg, textWhite);
             StyleComboBox(cmbFeedCategory, panelBg, textWhite);
             StyleComboBox(cmbCategoryEdit, panelBg, textWhite);
 
-            // 🔘 Knappar
             StyleButton(btnFetch, btnGray, btnHover, btnDown, textWhite, borderGray);
             StyleButton(btnSaveFeed, btnGray, btnHover, btnDown, textWhite, borderGray);
             StyleButton(btnOpenExternalLink, btnGray, btnHover, btnDown, textWhite, borderGray);
@@ -664,7 +646,6 @@ namespace UI
             StyleButton(btnRenameCategory, btnGray, btnHover, btnDown, textWhite, borderGray);
             StyleButton(btnDeleteCategory, btnGray, btnHover, btnDown, textWhite, borderGray);
 
-            // 📊 DataGridView
             StyleGrid(dgvEpisodes, bg, panelBg, textWhite);
 
             pictureBox1.BackColor = bg;
@@ -675,13 +656,10 @@ namespace UI
             btn.FlatStyle = FlatStyle.Flat;
             btn.FlatAppearance.BorderSize = 1;
             btn.FlatAppearance.BorderColor = border;
-
             btn.BackColor = bg;
             btn.ForeColor = text;
-
             btn.FlatAppearance.MouseOverBackColor = hover;
             btn.FlatAppearance.MouseDownBackColor = down;
-
             btn.Cursor = Cursors.Hand;
         }
 
@@ -717,27 +695,17 @@ namespace UI
             dgv.BackgroundColor = bg;
             dgv.BorderStyle = BorderStyle.None;
             dgv.EnableHeadersVisualStyles = false;
-
             dgv.ColumnHeadersDefaultCellStyle.BackColor = headerBg;
             dgv.ColumnHeadersDefaultCellStyle.ForeColor = text;
             dgv.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
-
             dgv.DefaultCellStyle.BackColor = bg;
             dgv.DefaultCellStyle.ForeColor = text;
             dgv.DefaultCellStyle.SelectionBackColor = Color.FromArgb(50, 50, 50);
             dgv.DefaultCellStyle.SelectionForeColor = Color.White;
-
             dgv.GridColor = Color.FromArgb(60, 60, 60);
         }
 
-        private void lblEpisodeCount_Click(object sender, EventArgs e)
-        {
-
-        }
-
-        private void lblEpisodeTitle_Click(object sender, EventArgs e)
-        {
-
-        }
+        private void lblEpisodeCount_Click(object sender, EventArgs e) { }
+        private void lblEpisodeTitle_Click(object sender, EventArgs e) { }
     }
 }
