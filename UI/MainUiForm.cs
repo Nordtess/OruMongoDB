@@ -609,17 +609,22 @@ namespace UI
             StyleGroupBox(grpEpisodes, panelBg, textGray);
             StyleGroupBox(grpCategories, panelBg, textGray);
 
-            // 📋 Labels
+            // 📋 Labels (alla vanliga labels = ljusgrå)
             foreach (var lbl in new[]
             {
-        lblRssUrl, lblCategoryFilter, lblCustomName, lblFeedCategory,
-        lblNewCategory, lblCategoryEdit, lblNewCategoryName, lblEpisodeTitle, lblEpisodeCount
-    })
+                lblRssUrl, lblCategoryFilter, lblCustomName, lblFeedCategory,
+                lblNewCategory, lblCategoryEdit, lblNewCategoryName
+            })
             {
                 lbl.ForeColor = textGray;
             }
 
+            // Titel + räknare ska vara mer framträdande (vit + bold)
             lblEpisodeTitle.ForeColor = textWhite;
+            lblEpisodeTitle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+
+            lblEpisodeCount.ForeColor = textWhite;
+            lblEpisodeCount.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
 
             // ✏️ TextBoxar
             StyleTextBox(txtRssUrl, panelBg, textWhite, borderGray);
@@ -722,6 +727,16 @@ namespace UI
             dgv.DefaultCellStyle.SelectionForeColor = Color.White;
 
             dgv.GridColor = Color.FromArgb(60, 60, 60);
+        }
+
+        private void lblEpisodeCount_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void lblEpisodeTitle_Click(object sender, EventArgs e)
+        {
+
         }
     }
 }

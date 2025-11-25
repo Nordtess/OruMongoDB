@@ -305,17 +305,19 @@ namespace UI
             lblEpisodeTitle.Size = new Size(390, 20);
             lblEpisodeTitle.TabIndex = 1;
             lblEpisodeTitle.Text = "No episodes.";
+            lblEpisodeTitle.Click += lblEpisodeTitle_Click;
             // 
             // lblEpisodeCount
             // 
             lblEpisodeCount.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            lblEpisodeCount.Font = new Font("Segoe UI", 9F);
+            lblEpisodeCount.Font = new Font("Segoe UI", 9F, FontStyle.Bold, GraphicsUnit.Point, 0);
             lblEpisodeCount.Location = new Point(400, 250);
             lblEpisodeCount.Name = "lblEpisodeCount";
             lblEpisodeCount.Size = new Size(120, 20);
             lblEpisodeCount.TabIndex = 4;
             lblEpisodeCount.Text = "Episodes: 0";
             lblEpisodeCount.TextAlign = ContentAlignment.MiddleRight;
+            lblEpisodeCount.Click += lblEpisodeCount_Click;
             // 
             // txtDescription
             // 
