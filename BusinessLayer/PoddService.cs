@@ -6,18 +6,40 @@ using OruMongoDB.Infrastructure;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using System.ComponentModel.DataAnnotations;
+
+/*
+ Summary
+ -------
+ PoddService is the high-level application service for podcast feed operations. It:
+ - Fetches and parses feeds from the Internet (via IRssParser) without persisting them.
+ - Loads saved feeds + episodes from MongoDB Atlas.
+ - Saves a feed with all its episodes atomically (ACID transaction).
+ - Renames feeds and assigns/removes categories using transactions.
+ - Deletes feeds and their episodes in a single transaction.
+
+ Design / Requirements Alignment
+ - Uses custom interfaces (IPoddService, IRssParser, IPoddflodeRepository, IPoddAvsnittRepository).
+ - All public methods are asynchronous to avoid blocking UI/network operations.
+ - MongoDB .NET driver is used directly; transactions wrap insert/update/delete.
+ - Validation throws ValidationException (for user/data issues) and ServiceException (for technical issues).
+ - Exceptions are caught and rethrown with context so the application can handle them gracefully.
+*/
 
 namespace OruMongoDB.BusinessLayer
 {
-    
     public interface IPoddService
     {
         Task<(Poddflöden poddflode, List<PoddAvsnitt> avsnitt)> FetchPoddFeedAsync(string rssUrl);
+        Task<(Poddflöden poddflode, List<PoddAvsnitt> avsnitt)> FetchFromDatabaseAsync(string rssUrl);
         Task SavePoddSubscriptionAsync(Poddflöden poddflode, List<PoddAvsnitt> avsnittList);
-        
+        Task<List<Poddflöden>> GetAllSavedFeedsAsync();
+        Task DeleteFeedAndEpisodesAsync(string rssUrl);
+        Task RenameFeedAsync(string id, string newName);
+        Task AssignCategoryAsync(string poddId, string categoryId);
+        Task RemoveCategoryAsync(string poddId);
     }
 
-    
     public class PoddService : IPoddService
     {
         private readonly IPoddflodeRepository _poddRepo;
@@ -25,7 +47,6 @@ namespace OruMongoDB.BusinessLayer
         private readonly IRssParser _rssParser;
         private readonly IMongoClient _client;
 
-        
         public PoddService(
             IPoddflodeRepository poddRepo,
             IPoddAvsnittRepository avsnittRepo,
@@ -35,87 +56,230 @@ namespace OruMongoDB.BusinessLayer
             _poddRepo = poddRepo ?? throw new ArgumentNullException(nameof(poddRepo));
             _avsnittRepo = avsnittRepo ?? throw new ArgumentNullException(nameof(avsnittRepo));
             _rssParser = rssParser ?? throw new ArgumentNullException(nameof(rssParser));
-            
-            _client = connector.GetClient() ?? throw new ServiceException("Kunde inte ansluta till MongoDB-klienten.");
+
+            if (connector == null)
+                throw new ArgumentNullException(nameof(connector));
+
+            _client = connector.GetClient()
+                      ?? throw new ServiceException("Could not obtain MongoDB client instance.");
         }
 
-        
+        // URL validation centralizes format checks before DB or network operations.
+        private static void ValidateRssUrlInternal(string rssUrl)
+        {
+            if (string.IsNullOrWhiteSpace(rssUrl))
+                throw new ValidationException("RSS URL must not be empty.");
+
+            if (!Uri.TryCreate(rssUrl, UriKind.Absolute, out var uri) ||
+                (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+            {
+                throw new ValidationException("RSS URL is not valid (must start with http or https).");
+            }
+        }
+
+        private static void ValidateFeedNameInternal(string name)
+        {
+            if (string.IsNullOrWhiteSpace(name))
+                throw new ValidationException("Feed name cannot be empty.");
+            if (name.Length >200)
+                throw new ValidationException("Feed name is too long (max200 characters).");
+        }
+
         public async Task<(Poddflöden poddflode, List<PoddAvsnitt> avsnitt)> FetchPoddFeedAsync(string rssUrl)
         {
+            ValidateRssUrlInternal(rssUrl);
             try
             {
-                
-                if (!Uri.IsWellFormedUriString(rssUrl, UriKind.Absolute))
-                {
-                    throw new ServiceException($"Den angivna URL:en '{rssUrl}' är inte giltig.");
-                }
-
                 return await _rssParser.FetchAndParseAsync(rssUrl);
-            }
-            catch (ServiceException)
-            {
-                
-                throw;
             }
             catch (Exception ex)
             {
-                
-                throw new ServiceException($"Kunde inte hämta eller tolka poddflödet från URL:en: {ex.Message}", ex);
+                throw new ServiceException(
+                    $"Could not fetch or parse the podcast feed from URL '{rssUrl}'.",
+                    ex);
             }
         }
 
-        
+        public async Task<(Poddflöden poddflode, List<PoddAvsnitt> avsnitt)> FetchFromDatabaseAsync(string rssUrl)
+        {
+            ValidateRssUrlInternal(rssUrl);
+
+            var existing = await _poddRepo.GetByUrlAsync(rssUrl);
+            if (existing == null)
+                throw new ValidationException($"No podcast feed found in database with RSS URL: {rssUrl}");
+
+            var episodes = await _avsnittRepo.GetByFeedIdAsync(existing.Id!);
+            return (existing, episodes);
+        }
+
         public async Task SavePoddSubscriptionAsync(Poddflöden poddflode, List<PoddAvsnitt> avsnittList)
         {
-            
+            if (poddflode == null) throw new ServiceException("Feed object may not be null.");
+            if (avsnittList == null) throw new ServiceException("Episode list may not be null.");
+
+            ValidateRssUrlInternal(poddflode.rssUrl);
+            ValidateFeedNameInternal(poddflode.displayName);
+            if (avsnittList.Count ==0) throw new ValidationException("There are no episodes to operate on.");
+
+            // Prevent duplicate subscription by RSS URL.
             var existingPodd = await _poddRepo.GetByUrlAsync(poddflode.rssUrl);
             if (existingPodd != null)
-            {
-                throw new ServiceException($"Poddflödet med URL '{poddflode.rssUrl}' är redan prenumererat på.");
-            }
+                throw new ServiceException(
+                    $"The feed with URL '{poddflode.rssUrl}' is already saved in the database.");
 
-            
             using var session = await _client.StartSessionAsync();
             session.StartTransaction();
 
             try
             {
-                
+                // Mark as saved BEFORE insert so persisted document contains correct values.
+                poddflode.IsSaved = true;
+                poddflode.SavedAt = DateTime.UtcNow;
+
+                //1) Insert the feed.
                 await _poddRepo.AddAsync(session, poddflode);
 
-                
-                string newFeedId = poddflode.Id;
-                avsnittList.ForEach(a => a.feedId = newFeedId);
+                //2) Ensure all episodes reference the new feed id.
+                var newFeedId = poddflode.Id;
+                foreach (var ep in avsnittList)
+                    ep.feedId = newFeedId!;
 
-                
-                if (avsnittList.Count > 0)
-                {
-                    await _avsnittRepo.AddRangeAsync(session, avsnittList);
-                }
+                //3) Insert all episodes (already validated count >0).
+                await _avsnittRepo.AddRangeAsync(session, avsnittList);
 
-                
+                //4) Commit.
                 await session.CommitTransactionAsync();
             }
             catch (Exception ex)
             {
-                
                 await session.AbortTransactionAsync();
+                throw new ServiceException(
+                    "Could not save the podcast feed and its episodes in a single transaction. All changes were rolled back.",
+                    ex);
+            }
+        }
 
-                throw new ServiceException("Kunde inte spara poddflödet och dess avsnitt i en transaktion. All data har rullats tillbaka.", ex);
+        public async Task<List<Poddflöden>> GetAllSavedFeedsAsync()
+        {
+            // Filter only feeds flagged as saved.
+            var all = await _poddRepo.GetAllAsync();
+            return new List<Poddflöden>(all.Where(f => f.IsSaved));
+        }
+
+        public async Task DeleteFeedAndEpisodesAsync(string rssUrl)
+        {
+            ValidateRssUrlInternal(rssUrl);
+
+            using var session = await _client.StartSessionAsync();
+            session.StartTransaction();
+
+            try
+            {
+                var feed = await _poddRepo.GetByUrlAsync(session, rssUrl);
+                if (feed == null)
+                    throw new ValidationException($"No podcast feed found with RSS URL: {rssUrl}");
+
+                await _avsnittRepo.DeleteByFeedIdAsync(session, feed.Id!);
+                await _poddRepo.DeleteByIdAsync(session, feed.Id!);
+
+                await session.CommitTransactionAsync();
+            }
+            catch (Exception ex)
+            {
+                await session.AbortTransactionAsync();
+                if (ex is ValidationException) throw;
+                throw new ServiceException(
+                    "Could not delete feed and episodes in a transaction.",
+                    ex);
+            }
+        }
+
+        public async Task RenameFeedAsync(string id, string newName)
+        {
+            if (string.IsNullOrWhiteSpace(id))
+                throw new ValidationException("Feed ID cannot be empty.");
+
+            ValidateFeedNameInternal(newName);
+
+            var existing = await _poddRepo.GetByIdAsync(id);
+            if (existing == null)
+                throw new ValidationException($"Could not find feed with id '{id}'.");
+
+            if (string.Equals(existing.displayName, newName, StringComparison.Ordinal))
+                throw new ValidationException("The new feed name is the same as the current name.");
+
+            using var session = await _client.StartSessionAsync();
+            session.StartTransaction();
+
+            try
+            {
+                existing.displayName = newName.Trim();
+                await _poddRepo.UpdateAsync(session, id, existing);
+                await session.CommitTransactionAsync();
+            }
+            catch (Exception ex)
+            {
+                await session.AbortTransactionAsync();
+                if (ex is ValidationException) throw;
+                throw new ServiceException(
+                    "Could not rename feed in a transaction.",
+                    ex);
             }
         }
 
         public async Task AssignCategoryAsync(string poddId, string categoryId)
         {
             if (string.IsNullOrWhiteSpace(poddId))
-            {
-                throw new ServiceException("Poddd ID får inte vara tomt.");
-            }
+                throw new ServiceException("Feed ID cannot be empty.");
             if (string.IsNullOrWhiteSpace(categoryId))
+                throw new ServiceException("Category ID cannot be empty.");
+
+            var existing = await _poddRepo.GetByIdAsync(poddId);
+            if (existing == null || !existing.IsSaved)
+                throw new ValidationException("Feed must be saved before assigning category.");
+
+            using var session = await _client.StartSessionAsync();
+            session.StartTransaction();
+
+            try
             {
-                throw new ServiceException("Kategori ID får inte vara tomt.");
+                await _poddRepo.UpdateCategoryAsync(session, poddId, categoryId);
+                await session.CommitTransactionAsync();
             }
-            await _poddRepo.UpdateCategoryAsync(poddId, categoryId);
+            catch (Exception ex)
+            {
+                await session.AbortTransactionAsync();
+                throw new ServiceException(
+                    "Could not assign category to the selected feed.",
+                    ex);
+            }
+        }
+
+        public async Task RemoveCategoryAsync(string poddId)
+        {
+            if (string.IsNullOrWhiteSpace(poddId))
+                throw new ServiceException("Feed ID cannot be empty.");
+
+            var existing = await _poddRepo.GetByIdAsync(poddId);
+            if (existing == null || !existing.IsSaved)
+                throw new ValidationException("Feed must be saved before removing category.");
+
+            using var session = await _client.StartSessionAsync();
+            session.StartTransaction();
+
+            try
+            {
+                // Empty string signals "no category".
+                await _poddRepo.UpdateCategoryAsync(session, poddId, string.Empty);
+                await session.CommitTransactionAsync();
+            }
+            catch (Exception ex)
+            {
+                await session.AbortTransactionAsync();
+                throw new ServiceException(
+                    "Could not remove category from the selected feed.",
+                    ex);
+            }
         }
     }
 }
