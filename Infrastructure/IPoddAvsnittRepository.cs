@@ -3,18 +3,29 @@ using OruMongoDB.Domain;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
+/*
+ Summary
+ -------
+ Defines the repository contract and implementation for podcast episodes (PoddAvsnitt) backed by MongoDB Atlas.
+ - Interface exposes async CRUD helpers and feed-scoped operations.
+ - Implementation uses the official MongoDB .NET driver and supports ACID transactions via session-aware overloads.
+ - Keeps data access isolated behind interfaces to align with layering and testability.
+*/
+
 namespace OruMongoDB.Infrastructure
 {
-    
-    // Interface utökad med metoder för att hämta och ta bort avsnitt baserat på feedId
     public interface IPoddAvsnittRepository : IRepository<PoddAvsnitt>
     {
+        // Bulk insert within an active transaction session.
         Task AddRangeAsync(IClientSessionHandle session, IEnumerable<PoddAvsnitt> entities);
+
+        // Query all episodes for a given feed (non-transactional read).
         Task<List<PoddAvsnitt>> GetByFeedIdAsync(string feedId);
+
+        // Delete all episodes for a given feed within a transaction session.
         Task DeleteByFeedIdAsync(IClientSessionHandle session, string feedId);
     }
 
-    
     public class PoddAvsnittRepository : MongoRepository<PoddAvsnitt>, IPoddAvsnittRepository
     {
         public PoddAvsnittRepository(IMongoDatabase database)
@@ -22,21 +33,19 @@ namespace OruMongoDB.Infrastructure
         {
         }
 
-        public async Task AddRangeAsync(IClientSessionHandle session, IEnumerable<PoddAvsnitt> entities)
-        {
-            await _collection.InsertManyAsync(session, entities);
-        }
+        public Task AddRangeAsync(IClientSessionHandle session, IEnumerable<PoddAvsnitt> entities) =>
+            _collection.InsertManyAsync(session, entities);
 
-        public async Task<List<PoddAvsnitt>> GetByFeedIdAsync(string feedId)
+        public Task<List<PoddAvsnitt>> GetByFeedIdAsync(string feedId)
         {
             var filter = Builders<PoddAvsnitt>.Filter.Eq(a => a.feedId, feedId);
-            return await _collection.Find(filter).ToListAsync();
+            return _collection.Find(filter).ToListAsync();
         }
 
-        public async Task DeleteByFeedIdAsync(IClientSessionHandle session, string feedId)
+        public Task DeleteByFeedIdAsync(IClientSessionHandle session, string feedId)
         {
             var filter = Builders<PoddAvsnitt>.Filter.Eq(a => a.feedId, feedId);
-            await _collection.DeleteManyAsync(session, filter);
+            return _collection.DeleteManyAsync(session, filter);
         }
     }
 }

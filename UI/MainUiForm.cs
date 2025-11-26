@@ -7,15 +7,22 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using OruMongoDB.BusinessLayer;
 using OruMongoDB.Domain;
-using UI;
-using System.Drawing;
-using UI;
 using OruMongoDB.Core.Helpers;
+
+/*
+ Summary:
+ Main Windows Forms UI for managing podcast subscriptions and categories.
+ Interacts with the BusinessLayer services that use MongoDB Driver against MongoDB Atlas
+ for persistent storage. All long-running operations are async to keep the UI responsive,
+ and exceptions are handled to avoid crashes. Users can fetch feeds, save them with
+ episodes, assign/remove categories, and manage categories.
+*/
 
 namespace UI
 {
     public partial class MainUiForm : Form
     {
+        // Services and in-memory UI state
         private readonly IPoddService _poddService;
         private readonly CategoryService _categoryService;
 
@@ -32,6 +39,7 @@ namespace UI
             _categoryService = ServiceFactory.CreateCategoryService();
         }
 
+        // Form initialization: load categories and previously saved feeds
         private async void MainUiForm_Load(object? sender, EventArgs e)
         {
             try
@@ -46,6 +54,7 @@ namespace UI
             }
         }
 
+        // Fetch a feed either from database cache or from the internet
         private async void btnFetch_Click(object? sender, EventArgs e)
         {
             var url = txtRssUrl.Text.Trim();
@@ -62,6 +71,7 @@ namespace UI
 
             try
             {
+                // Reset UI state for a new load
                 _currentFlode = null;
                 _currentEpisodes = new List<PoddAvsnitt>();
                 dgvEpisodes.Rows.Clear();
@@ -70,6 +80,7 @@ namespace UI
                 txtDescription.Clear();
                 try
                 {
+                    // Try read-through cache from DB first (fast path)
                     var dbResult = await _poddService.FetchFromDatabaseAsync(url);
                     _currentFlode = dbResult.poddflode;
                     _currentEpisodes = dbResult.avsnitt ?? new List<PoddAvsnitt>();
@@ -84,9 +95,9 @@ namespace UI
                 }
                 catch (ValidationException)
                 {
-                    // Not found in DB, fall back to internet
                 }
 
+                // Fallback to internet fetch (slow path)
                 var netResult = await _poddService.FetchPoddFeedAsync(url);
                 _currentFlode = netResult.poddflode;
                 _currentEpisodes = netResult.avsnitt ?? new List<PoddAvsnitt>();
@@ -110,6 +121,7 @@ namespace UI
             }
         }
 
+        // Persist current feed and all its episodes
         private async void btnSaveFeed_Click(object? sender, EventArgs e)
         {
             try
@@ -144,6 +156,7 @@ namespace UI
             }
         }
 
+        // Load all categories from database and refresh related UI controls
         private async Task LoadCategoriesAsync()
         {
             _allCategories = (await _categoryService.GetAllCategoriesAsync()).ToList();
@@ -170,12 +183,14 @@ namespace UI
             if (cmbCategoryEdit.Items.Count >0) cmbCategoryEdit.SelectedIndex =0;
         }
 
+        // Load saved feeds and apply any active category filter
         private async Task LoadSavedFeedsAsync()
         {
             _allSavedFeeds = await _poddService.GetAllSavedFeedsAsync();
             ApplyCategoryFilter();
         }
 
+        // Filter feeds by selected category and bind to list
         private void ApplyCategoryFilter()
         {
             lstPodcasts.DataSource = null;
@@ -195,6 +210,7 @@ namespace UI
 
         private void cmbCategoryFilter_SelectedIndexChanged(object? sender, EventArgs e) => ApplyCategoryFilter();
 
+        // Keep feed category combo in sync with the current feed
         private void SyncFeedCategoryFromFeed(Poddflöden feed)
         {
             if (string.IsNullOrEmpty(feed.categoryId))
@@ -206,6 +222,7 @@ namespace UI
             cmbFeedCategory.SelectedItem = cat ?? (cmbFeedCategory.Items.Count >0 ? cmbFeedCategory.Items[0] : null);
         }
 
+        // Selecting a podcast loads its episodes from DB
         private async void lstPodcasts_SelectedIndexChanged(object? sender, EventArgs e)
         {
             if (lstPodcasts.SelectedItem is not Poddflöden selected || string.IsNullOrWhiteSpace(selected.rssUrl))
@@ -227,6 +244,7 @@ namespace UI
             }
         }
 
+        // Assign a category to the currently selected (and saved) feed
         private async void btnSetCategory_Click(object? sender, EventArgs e)
         {
             try
@@ -259,6 +277,7 @@ namespace UI
             }
         }
 
+        // Remove category assignment from the current feed
         private async void btnRemoveCategory_Click(object? sender, EventArgs e)
         {
             try
@@ -294,6 +313,7 @@ namespace UI
             }
         }
 
+        // Delete the selected feed and all its episodes
         private async void btnDelete_Click(object? sender, EventArgs e)
         {
             if (lstPodcasts.SelectedItem is not Poddflöden selected)
@@ -330,6 +350,7 @@ namespace UI
             }
         }
 
+        // Rename the selected feed
         private async void btnRename_Click(object? sender, EventArgs e)
         {
             try
@@ -340,6 +361,7 @@ namespace UI
                 PoddValidator.EnsureFeedRenameValid(selected, newName);
                 await _poddService.RenameFeedAsync(selected.Id!, newName);
                 selected.displayName = newName;
+                // Refresh data binding to show the new display name
                 lstPodcasts.DisplayMember = "";
                 lstPodcasts.DisplayMember = "displayName";
                 MessageBox.Show("Feed renamed.", "Done",
@@ -357,6 +379,7 @@ namespace UI
             }
         }
 
+        // Create a new category
         private async void btnCreateCategory_Click(object? sender, EventArgs e)
         {
             try
@@ -383,6 +406,7 @@ namespace UI
             }
         }
 
+        // Rename an existing category
         private async void btnRenameCategory_Click(object? sender, EventArgs e)
         {
             try
@@ -413,6 +437,7 @@ namespace UI
             }
         }
 
+        // Delete a category
         private async void btnDeleteCategory_Click(object? sender, EventArgs e)
         {
             try
@@ -441,6 +466,7 @@ namespace UI
             }
         }
 
+        // Rebind episodes to the grid and update selection
         private void FillEpisodesGrid(List<PoddAvsnitt> avsnitt)
         {
             dgvEpisodes.Rows.Clear();
@@ -462,6 +488,7 @@ namespace UI
 
         private void dgvEpisodes_SelectionChanged(object? sender, EventArgs e) => UpdateEpisodeDetailsFromGrid();
 
+        // Get the currently selected episode (if any) by matching grid row index to backing list
         private bool TryGetSelectedEpisode(out PoddAvsnitt ep)
         {
             ep = null!;
@@ -473,6 +500,7 @@ namespace UI
             return true;
         }
 
+        // Update episode detail panel from current grid selection
         private void UpdateEpisodeDetailsFromGrid()
         {
             if (!TryGetSelectedEpisode(out var ep)) return;
@@ -481,6 +509,7 @@ namespace UI
             txtDescription.Text = $"Title: {ep.title}\r\nPublished: {ep.publishDate}\r\n\r\n{cleanDesc}";
         }
 
+        // Open episode external link in the system default browser
         private void btnOpenExternalLink_Click(object? sender, EventArgs e)
         {
             if (!TryGetSelectedEpisode(out var ep)) return;
@@ -501,6 +530,7 @@ namespace UI
             }
         }
 
+        // Theme helper encapsulation to keep this form lean
         private void lblFeedCategory_Click(object sender, EventArgs e) { }
         private void lblCustomName_Click(object sender, EventArgs e) { }
         private void pictureBox1_Click(object sender, EventArgs e) { }

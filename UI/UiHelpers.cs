@@ -3,11 +3,20 @@ using System.Diagnostics;
 using System.Drawing;
 using System.Windows.Forms;
 
+/*
+ Summary:
+ UI helpers for consistent dark theme styling of WinForms controls and safe link opening.
+ Centralizes colors/visuals to keep the UI coherent, while business/data layers handle
+ MongoDB Atlas persistence with async operations and transactions. Keeps the UI stable by
+ avoiding unhandled exceptions from bubbling up.
+*/
+
 namespace UI
 {
  internal static class UiHelpers
  {
- public static void ApplyTheme(Form form,
+ public static void ApplyTheme(
+ Form form,
  GroupBox[] groups,
  Label[] labels,
  TextBox[] textBoxes,
@@ -17,18 +26,16 @@ namespace UI
  DataGridView grid,
  PictureBox? pictureBox = null)
  {
- // Base colors
+ // Palette
  Color bg = Color.FromArgb(22,22,22);
  Color panelBg = Color.FromArgb(30,30,30);
  Color borderGray = Color.FromArgb(55,55,55);
  Color btnGray = Color.FromArgb(45,45,45);
  Color btnHover = Color.FromArgb(60,60,60);
  Color btnDown = Color.FromArgb(35,35,35);
-
- // Make all text bright white as requested
  Color textWhite = Color.White;
- Color textGray = Color.FromArgb(200,200,200); // keep if needed elsewhere
 
+ // Form
  form.BackColor = bg;
  form.ForeColor = textWhite;
  form.Font = new Font("Segoe UI",9F, FontStyle.Regular);
@@ -37,10 +44,10 @@ namespace UI
  foreach (var g in groups)
  {
  g.BackColor = panelBg;
- g.ForeColor = textWhite; // bright white titles (My podcasts, Episode list, Categories)
+ g.ForeColor = textWhite;
  }
 
- // Labels (e.g., RSS URL and other captions) -> bright white
+ // Labels
  foreach (var lbl in labels)
  {
  lbl.ForeColor = textWhite;
@@ -93,18 +100,22 @@ namespace UI
  grid.GridColor = Color.FromArgb(60,60,60);
 
  if (pictureBox != null)
+ {
  pictureBox.BackColor = bg;
  }
+ }
 
+ // Fire-and-forget safe link opener for the UI (errors are intentionally swallowed)
  public static void OpenLink(string url)
  {
+ if (string.IsNullOrWhiteSpace(url)) return; // no-op for invalid input
  try
  {
  Process.Start(new ProcessStartInfo { FileName = url, UseShellExecute = true });
  }
  catch
  {
- // swallow; UI can display message separately
+ // Intentionally ignored: callers handle user messaging to keep UI resilient
  }
  }
  }
