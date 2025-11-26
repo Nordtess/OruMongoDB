@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.ServiceModel.Syndication;
 using System.Threading.Tasks;
 using System.Xml;
+using OruMongoDB.Core.Helpers;
 
 namespace OruMongoDB.BusinessLayer.Rss
 {
@@ -29,10 +30,12 @@ namespace OruMongoDB.BusinessLayer.Rss
 
             foreach (var item in feed.Items)
             {
+                var rawDesc = item.Summary?.Text ?? item.Content?.ToString() ?? "No description available.";
+                var cleanDesc = HtmlCleaner.ToPlainText(rawDesc);
                 avsnittList.Add(new PoddAvsnitt
                 {
                     title = item.Title?.Text ?? "Unknown episode",
-                    description = item.Summary?.Text ?? item.Content?.ToString() ?? "No description available.",
+                    description = cleanDesc,
                     publishDate = item.PublishDate.DateTime.ToShortDateString(),
                     link = item.Links.Count > 0 ? item.Links[0].Uri.ToString() : string.Empty,
                 });

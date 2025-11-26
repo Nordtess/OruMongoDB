@@ -10,6 +10,7 @@ using OruMongoDB.Domain;
 using UI;
 using System.Drawing;
 using UI;
+using OruMongoDB.Core.Helpers;
 
 namespace UI
 {
@@ -128,7 +129,10 @@ namespace UI
                 PoddValidator.ValidateFeedName(customName);
                 _currentFlode!.displayName = customName;
                 foreach (var ep in _currentEpisodes)
-                    ep.feedId = _currentFlode.Id!;
+                {
+                ep.feedId = _currentFlode.Id!;
+                ep.description = HtmlCleaner.ToPlainText(ep.description);
+                }
                 await _poddService.SavePoddSubscriptionAsync(_currentFlode, _currentEpisodes);
                 _currentFlode.IsSaved = true;
                 _currentFlode.SavedAt = DateTime.UtcNow;
@@ -507,7 +511,8 @@ namespace UI
         {
             if (!TryGetSelectedEpisode(out var ep)) return;
             lblEpisodeTitle.Text = ep.title;
-            txtDescription.Text = $"Title: {ep.title}\r\nPublished: {ep.publishDate}\r\n\r\n{ep.description}";
+            var cleanDesc = HtmlCleaner.ToPlainText(ep.description);
+            txtDescription.Text = $"Title: {ep.title}\r\nPublished: {ep.publishDate}\r\n\r\n{cleanDesc}";
         }
 
         private void btnOpenExternalLink_Click(object? sender, EventArgs e)
