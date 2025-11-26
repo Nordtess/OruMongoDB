@@ -1,12 +1,23 @@
 ﻿using MongoDB.Driver;
 using OruMongoDB.Domain;
 
+/*
+ Summary
+ -------
+ Repository for `Kategori` (categories) backed by MongoDB Atlas.
+ - Provides async CRUD operations using the official MongoDB .NET driver.
+ - Exposes overloads that accept `IClientSessionHandle` to participate in ACID transactions
+ (insert/update/delete).
+ - Keeps pure data access concerns isolated from business logic via interfaces.
+*/
+
 namespace OruMongoDB.Infrastructure
 {
     public class CategoryRepository : MongoRepository<Kategori>, ICategoryRepository
     {
         public CategoryRepository(IMongoDatabase database) : base(database, "Kategorier") { }
 
+        // Non-transactional operations (driver handles async I/O)
         public Task InsertAsync(Kategori category) =>
             _collection.InsertOneAsync(category);
 
@@ -23,7 +34,7 @@ namespace OruMongoDB.Infrastructure
             return _collection.DeleteOneAsync(filter);
         }
 
-        // Transaction-aware overloads
+        // Transaction-aware overloads (to be called within an active session)
         public Task InsertAsync(IClientSessionHandle session, Kategori category) =>
             _collection.InsertOneAsync(session, category);
 
