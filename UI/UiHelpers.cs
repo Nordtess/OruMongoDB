@@ -107,11 +107,5 @@ namespace UI
  // swallow; UI can display message separately
  }
  }
-
- public static void LogTo(TextBox txtLog, string message)
- {
- var line = $"[{DateTime.Now:HH:mm}] {message}";
- txtLog.AppendText(line + Environment.NewLine);
- }
  }
 }

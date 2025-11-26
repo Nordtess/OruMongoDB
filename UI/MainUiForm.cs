@@ -38,11 +38,9 @@ namespace UI
             {
                 await LoadCategoriesAsync();
                 await LoadSavedFeedsAsync();
-                UiHelpers.LogTo(txtLog, "Application started.");
             }
             catch (Exception ex)
             {
-                UiHelpers.LogTo(txtLog, "Error on startup: " + ex.Message);
                 MessageBox.Show("Error during startup: " + ex.Message, "Startup error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
@@ -70,7 +68,6 @@ namespace UI
                 lblEpisodeTitle.Text = "No episodes.";
                 lblEpisodeCount.Text = "Episodes:0";
                 txtDescription.Clear();
-                UiHelpers.LogTo(txtLog, $"Trying to load feed from MongoDB for URL: {url}");
                 try
                 {
                     var dbResult = await _poddService.FetchFromDatabaseAsync(url);
@@ -80,18 +77,16 @@ namespace UI
                     txtCustomName.Text = _currentFlode.displayName;
                     SyncFeedCategoryFromFeed(_currentFlode);
                     FillEpisodesGrid(_currentEpisodes);
-                    UiHelpers.LogTo(txtLog, $"Loaded {_currentEpisodes.Count} episodes for '{_currentFlode.displayName}' from database.");
                     MessageBox.Show(
                         $"Loaded {_currentEpisodes.Count} episodes for '{_currentFlode.displayName}'.",
                         "Loaded", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     return;
                 }
-                catch (ValidationException vex)
+                catch (ValidationException)
                 {
-                    UiHelpers.LogTo(txtLog, "Not found in DB. Falling back to internet. " + vex.Message);
+                    // Not found in DB, fall back to internet
                 }
 
-                UiHelpers.LogTo(txtLog, $"Fetching feed from Internet: {url}");
                 var netResult = await _poddService.FetchPoddFeedAsync(url);
                 _currentFlode = netResult.poddflode;
                 _currentEpisodes = netResult.avsnitt ?? new List<PoddAvsnitt>();
@@ -102,19 +97,16 @@ namespace UI
                 MessageBox.Show(
                     $"Loaded {_currentEpisodes.Count} episodes for '{_currentFlode.displayName}'.",
                     "Loaded", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                UiHelpers.LogTo(txtLog, $"Loaded {_currentEpisodes.Count} episodes for '{_currentFlode.displayName}' from Internet.");
             }
             catch (ValidationException vex)
             {
                 MessageBox.Show(vex.Message, "Validation error",
                     MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                UiHelpers.LogTo(txtLog, "Validation error while fetching: " + vex.Message);
             }
             catch (Exception ex)
             {
                 MessageBox.Show("Error while fetching feed: " + ex.Message, "Technical error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
-                UiHelpers.LogTo(txtLog, "Error while fetching feed: " + ex);
             }
         }
 
@@ -138,20 +130,17 @@ namespace UI
                 _currentFlode.SavedAt = DateTime.UtcNow;
                 MessageBox.Show("Feed and episodes saved.", "Done",
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
-                UiHelpers.LogTo(txtLog, $"Saved feed '{_currentFlode.displayName}' and {_currentEpisodes.Count} episodes.");
                 await LoadSavedFeedsAsync();
             }
             catch (ValidationException vex)
             {
                 MessageBox.Show(vex.Message, "Validation error",
                     MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                UiHelpers.LogTo(txtLog, "Validation error while saving: " + vex.Message);
             }
             catch (Exception ex)
             {
                 MessageBox.Show("Error while saving: " + ex.Message, "Technical error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
-                UiHelpers.LogTo(txtLog, "Error while saving feed and episodes: " + ex);
             }
         }
 
@@ -224,20 +213,17 @@ namespace UI
             _currentFlode = selected;
             txtCustomName.Text = selected.displayName;
             txtRssUrl.Text = selected.rssUrl;
-            UiHelpers.LogTo(txtLog, $"Selected saved podcast: {selected.displayName}");
             SyncFeedCategoryFromFeed(selected);
             try
             {
                 var result = await _poddService.FetchFromDatabaseAsync(selected.rssUrl);
                 _currentEpisodes = result.avsnitt ?? new List<PoddAvsnitt>();
                 FillEpisodesGrid(_currentEpisodes);
-                UiHelpers.LogTo(txtLog, $"Loaded {_currentEpisodes.Count} episodes for '{selected.displayName}'.");
             }
             catch (Exception ex)
             {
                 MessageBox.Show("Error loading episodes: " + ex.Message, "Technical error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
-                UiHelpers.LogTo(txtLog, "Error loading episodes: " + ex);
             }
         }
 
@@ -259,20 +245,17 @@ namespace UI
 
                 MessageBox.Show($"Category '{selectedCategory.Namn}' assigned.", "Done",
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
-                UiHelpers.LogTo(txtLog, $"Set category '{selectedCategory.Namn}' for '{_currentFlode.displayName}'.");
                 ApplyCategoryFilter();
             }
             catch (ValidationException vex)
             {
                 MessageBox.Show(vex.Message, "Validation",
                     MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                UiHelpers.LogTo(txtLog, "Validation (set category): " + vex.Message);
             }
             catch (Exception ex)
             {
                 MessageBox.Show("Error setting category: " + ex.Message, "Technical error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
-                UiHelpers.LogTo(txtLog, "Error setting category: " + ex);
             }
         }
 
@@ -297,20 +280,17 @@ namespace UI
 
                 MessageBox.Show("Category removed from feed.", "Done",
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
-                UiHelpers.LogTo(txtLog, $"Removed category from '{_currentFlode.displayName}'.");
                 ApplyCategoryFilter();
             }
             catch (ValidationException vex)
             {
                 MessageBox.Show(vex.Message, "Validation",
                     MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                UiHelpers.LogTo(txtLog, "Validation (remove category): " + vex.Message);
             }
             catch (Exception ex)
             {
                 MessageBox.Show("Error removing category: " + ex.Message, "Technical error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
-                UiHelpers.LogTo(txtLog, "Error removing category: " + ex);
             }
         }
 
@@ -329,7 +309,6 @@ namespace UI
             try
             {
                 await _poddService.DeleteFeedAndEpisodesAsync(selected.rssUrl);
-                UiHelpers.LogTo(txtLog, $"Removed feed '{selected.displayName}'.");
                 _allSavedFeeds.Remove(selected);
                 ApplyCategoryFilter();
                 if (_currentFlode?.rssUrl == selected.rssUrl)
@@ -348,7 +327,6 @@ namespace UI
             {
                 MessageBox.Show("Error removing feed: " + ex.Message, "Technical error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
-                UiHelpers.LogTo(txtLog, "Error removing feed: " + ex);
             }
         }
 
@@ -366,19 +344,16 @@ namespace UI
                 lstPodcasts.DisplayMember = "displayName";
                 MessageBox.Show("Feed renamed.", "Done",
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
-                UiHelpers.LogTo(txtLog, $"Renamed feed '{selected.Id}' to '{newName}'.");
             }
             catch (ValidationException vex)
             {
                 MessageBox.Show(vex.Message, "Validation",
                     MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                UiHelpers.LogTo(txtLog, "Validation (rename feed): " + vex.Message);
             }
             catch (Exception ex)
             {
                 MessageBox.Show("Error renaming feed: " + ex.Message, "Technical error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
-                UiHelpers.LogTo(txtLog, "Error renaming feed: " + ex);
             }
         }
 
@@ -391,7 +366,6 @@ namespace UI
                 if (_allCategories.Any(c => c.Namn.Equals(name, StringComparison.OrdinalIgnoreCase)))
                     throw new ValidationException($"Category '{name}' already exists.");
                 await _categoryService.CreateCategoryAsync(name);
-                UiHelpers.LogTo(txtLog, $"Created category '{name}'.");
                 txtNewCategoryName.Clear();
                 await LoadCategoriesAsync();
                 MessageBox.Show("Category created.", "Done",
@@ -401,13 +375,11 @@ namespace UI
             {
                 MessageBox.Show(vex.Message, "Validation",
                     MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                UiHelpers.LogTo(txtLog, "Validation (create category): " + vex.Message);
             }
             catch (Exception ex)
             {
                 MessageBox.Show("Error creating category: " + ex.Message, "Technical error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
-                UiHelpers.LogTo(txtLog, "Error creating category: " + ex);
             }
         }
 
@@ -424,7 +396,6 @@ namespace UI
                     "Confirm rename", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
                 if (confirm == DialogResult.No) return;
                 await _categoryService.UpdateCategoryNameAsync(selectedCat.Id, newName);
-                UiHelpers.LogTo(txtLog, $"Renamed category '{selectedCat.Namn}' to '{newName}'.");
                 txtEditCategoryName.Clear();
                 await LoadCategoriesAsync();
                 MessageBox.Show("Category renamed.", "Done",
@@ -434,13 +405,11 @@ namespace UI
             {
                 MessageBox.Show(vex.Message, "Validation",
                     MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                UiHelpers.LogTo(txtLog, "Validation (rename category): " + vex.Message);
             }
             catch (Exception ex)
             {
                 MessageBox.Show("Error renaming category: " + ex.Message, "Technical error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
-                UiHelpers.LogTo(txtLog, "Error renaming category: " + ex);
             }
         }
 
@@ -455,7 +424,6 @@ namespace UI
                     "Confirm deletion", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
                 if (confirm == DialogResult.No) return;
                 await _categoryService.DeleteCategoryAsync(selectedCat.Id);
-                UiHelpers.LogTo(txtLog, $"Deleted category '{selectedCat.Namn}'.");
                 txtEditCategoryName.Clear();
                 await LoadCategoriesAsync();
                 MessageBox.Show("Category deleted.", "Done",
@@ -465,13 +433,11 @@ namespace UI
             {
                 MessageBox.Show(vex.Message, "Validation",
                     MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                UiHelpers.LogTo(txtLog, "Validation (delete category): " + vex.Message);
             }
             catch (Exception ex)
             {
                 MessageBox.Show("Error deleting category: " + ex.Message, "Technical error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
-                UiHelpers.LogTo(txtLog, "Error deleting category: " + ex);
             }
         }
 
@@ -527,13 +493,11 @@ namespace UI
             try
             {
                 Process.Start(new ProcessStartInfo { FileName = ep.link, UseShellExecute = true });
-                UiHelpers.LogTo(txtLog, $"Opened external link for '{ep.title}'.");
             }
             catch (Exception ex)
             {
                 MessageBox.Show("Could not open link: " + ex.Message, "Technical error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
-                UiHelpers.LogTo(txtLog, "Error opening link: " + ex);
             }
         }
 
@@ -546,15 +510,15 @@ namespace UI
         private void ApplyTheme()
         {
             UiHelpers.ApplyTheme(
-                this,
-                new[] { grpMyPodcasts, grpEpisodes, grpCategories },
-                new[] { lblRssUrl, lblCategoryFilter, lblCustomName, lblFeedCategory, lblNewCategory, lblCategoryEdit, lblNewCategoryName },
-                new[] { txtRssUrl, txtCustomName, txtNewCategoryName, txtEditCategoryName, txtDescription, txtLog },
-                new[] { lstPodcasts, lstCategoriesRight },
-                new[] { cmbCategoryFilter, cmbFeedCategory, cmbCategoryEdit },
-                new[] { btnFetch, btnSaveFeed, btnOpenExternalLink, btnSetCategory, btnRemoveCategory, btnDelete, btnRename, btnCreateCategory, btnRenameCategory, btnDeleteCategory },
-                dgvEpisodes,
-                pictureBox1);
+            this,
+            new[] { grpMyPodcasts, grpEpisodes, grpCategories },
+            new[] { lblRssUrl, lblCategoryFilter, lblCustomName, lblFeedCategory, lblNewCategory, lblCategoryEdit, lblNewCategoryName },
+            new[] { txtRssUrl, txtCustomName, txtNewCategoryName, txtEditCategoryName, txtDescription },
+            new[] { lstPodcasts, lstCategoriesRight },
+            new[] { cmbCategoryFilter, cmbFeedCategory, cmbCategoryEdit },
+            new[] { btnFetch, btnSaveFeed, btnOpenExternalLink, btnSetCategory, btnRemoveCategory, btnDelete, btnRename, btnCreateCategory, btnRenameCategory, btnDeleteCategory },
+            dgvEpisodes,
+            pictureBox1);
         }
     }
 }

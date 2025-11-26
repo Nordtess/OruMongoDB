@@ -43,7 +43,6 @@ namespace UI
         private Button btnRenameCategory;
         private Button btnDeleteCategory;
 
-        private TextBox txtLog;
         private Label lblRssUrl;
         private Label lblCustomName;
         private PictureBox pictureBox1;
@@ -79,9 +78,9 @@ namespace UI
             lblEpisodeTitle = new Label();
             lblEpisodeCount = new Label();
             txtDescription = new TextBox();
+            btnOpenExternalLink = new Button();
             btnDeleteCategory = new Button();
             btnRenameCategory = new Button();
-            btnOpenExternalLink = new Button();
             grpCategories = new GroupBox();
             lstCategoriesRight = new ListBox();
             lblNewCategoryName = new Label();
@@ -91,7 +90,6 @@ namespace UI
             txtNewCategoryName = new TextBox();
             lblNewCategory = new Label();
             cmbCategoryEdit = new ComboBox();
-            txtLog = new TextBox();
             lblRssUrl = new Label();
             pictureBox1 = new PictureBox();
             grpMyPodcasts.SuspendLayout();
@@ -330,6 +328,16 @@ namespace UI
             txtDescription.Size = new Size(562, 221);
             txtDescription.TabIndex = 2;
             // 
+            // btnOpenExternalLink
+            // 
+            btnOpenExternalLink.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
+            btnOpenExternalLink.Location = new Point(432, 514);
+            btnOpenExternalLink.Name = "btnOpenExternalLink";
+            btnOpenExternalLink.Size = new Size(140, 25);
+            btnOpenExternalLink.TabIndex = 3;
+            btnOpenExternalLink.Text = "Open link";
+            btnOpenExternalLink.Click += btnOpenExternalLink_Click;
+            // 
             // btnDeleteCategory
             // 
             btnDeleteCategory.Location = new Point(10, 400);
@@ -348,16 +356,6 @@ namespace UI
             btnRenameCategory.TabIndex = 8;
             btnRenameCategory.Text = "Rename";
             btnRenameCategory.Click += btnRenameCategory_Click;
-            // 
-            // btnOpenExternalLink
-            // 
-            btnOpenExternalLink.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
-            btnOpenExternalLink.Location = new Point(432, 514);
-            btnOpenExternalLink.Name = "btnOpenExternalLink";
-            btnOpenExternalLink.Size = new Size(140, 25);
-            btnOpenExternalLink.TabIndex = 3;
-            btnOpenExternalLink.Text = "Open link";
-            btnOpenExternalLink.Click += btnOpenExternalLink_Click;
             // 
             // grpCategories
             // 
@@ -449,17 +447,6 @@ namespace UI
             cmbCategoryEdit.Size = new Size(340, 23);
             cmbCategoryEdit.TabIndex = 5;
             // 
-            // txtLog
-            // 
-            txtLog.Anchor = AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
-            txtLog.Location = new Point(892, 27);
-            txtLog.Multiline = true;
-            txtLog.Name = "txtLog";
-            txtLog.ReadOnly = true;
-            txtLog.ScrollBars = ScrollBars.Vertical;
-            txtLog.Size = new Size(241, 47);
-            txtLog.TabIndex = 9;
-            // 
             // lblRssUrl
             // 
             lblRssUrl.AutoSize = true;
@@ -471,12 +458,13 @@ namespace UI
             // 
             // pictureBox1
             // 
+            pictureBox1.BackColor = Color.Transparent;
             pictureBox1.Cursor = Cursors.Hand;
             pictureBox1.Image = Properties.Resources.loggo4;
-            pictureBox1.Location = new Point(540, -10);
+            pictureBox1.Location = new Point(553, 1);
             pictureBox1.Name = "pictureBox1";
-            pictureBox1.Size = new Size(140, 106);
-            pictureBox1.SizeMode = PictureBoxSizeMode.Zoom;
+            pictureBox1.Size = new Size(117, 82);
+            pictureBox1.SizeMode = PictureBoxSizeMode.StretchImage;
             pictureBox1.TabIndex = 0;
             pictureBox1.TabStop = false;
             pictureBox1.Click += pictureBox1_Click;
@@ -494,7 +482,6 @@ namespace UI
             Controls.Add(grpMyPodcasts);
             Controls.Add(grpEpisodes);
             Controls.Add(grpCategories);
-            Controls.Add(txtLog);
             Name = "MainUiForm";
             Text = "Podcast Manager";
             Load += MainUiForm_Load;
