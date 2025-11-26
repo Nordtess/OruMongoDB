@@ -67,11 +67,11 @@ namespace UI
             lstPodcasts = new ListBox();
             lblCustomName = new Label();
             lblFeedCategory = new Label();
-            cmbFeedCategory = new ComboBox();
+            btnRename = new Button();
             btnSetCategory = new Button();
             btnRemoveCategory = new Button();
             btnDelete = new Button();
-            btnRename = new Button();
+            cmbFeedCategory = new ComboBox();
             grpEpisodes = new GroupBox();
             dgvEpisodes = new DataGridView();
             colTitle = new DataGridViewTextBoxColumn();
@@ -79,18 +79,18 @@ namespace UI
             lblEpisodeTitle = new Label();
             lblEpisodeCount = new Label();
             txtDescription = new TextBox();
+            btnDeleteCategory = new Button();
+            btnRenameCategory = new Button();
             btnOpenExternalLink = new Button();
             grpCategories = new GroupBox();
             lstCategoriesRight = new ListBox();
-            lblNewCategory = new Label();
-            txtNewCategoryName = new TextBox();
-            btnCreateCategory = new Button();
-            lblCategoryEdit = new Label();
-            cmbCategoryEdit = new ComboBox();
             lblNewCategoryName = new Label();
+            btnCreateCategory = new Button();
             txtEditCategoryName = new TextBox();
-            btnRenameCategory = new Button();
-            btnDeleteCategory = new Button();
+            lblCategoryEdit = new Label();
+            txtNewCategoryName = new TextBox();
+            lblNewCategory = new Label();
+            cmbCategoryEdit = new ComboBox();
             txtLog = new TextBox();
             lblRssUrl = new Label();
             pictureBox1 = new PictureBox();
@@ -122,7 +122,7 @@ namespace UI
             // txtCustomName
             // 
             txtCustomName.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
-            txtCustomName.Location = new Point(6, 300);
+            txtCustomName.Location = new Point(10, 315);
             txtCustomName.Name = "txtCustomName";
             txtCustomName.Size = new Size(235, 23);
             txtCustomName.TabIndex = 4;
@@ -146,14 +146,14 @@ namespace UI
             grpMyPodcasts.Controls.Add(lblCustomName);
             grpMyPodcasts.Controls.Add(lblFeedCategory);
             grpMyPodcasts.Controls.Add(txtCustomName);
-            grpMyPodcasts.Controls.Add(cmbFeedCategory);
+            grpMyPodcasts.Controls.Add(btnRename);
             grpMyPodcasts.Controls.Add(btnSetCategory);
             grpMyPodcasts.Controls.Add(btnRemoveCategory);
             grpMyPodcasts.Controls.Add(btnDelete);
-            grpMyPodcasts.Controls.Add(btnRename);
+            grpMyPodcasts.Controls.Add(cmbFeedCategory);
             grpMyPodcasts.Location = new Point(12, 80);
             grpMyPodcasts.Name = "grpMyPodcasts";
-            grpMyPodcasts.Size = new Size(260, 470);
+            grpMyPodcasts.Size = new Size(260, 598);
             grpMyPodcasts.TabIndex = 6;
             grpMyPodcasts.TabStop = false;
             grpMyPodcasts.Text = "My podcasts";
@@ -188,7 +188,7 @@ namespace UI
             // lblCustomName
             // 
             lblCustomName.AutoSize = true;
-            lblCustomName.Location = new Point(6, 286);
+            lblCustomName.Location = new Point(10, 297);
             lblCustomName.Name = "lblCustomName";
             lblCustomName.Size = new Size(107, 15);
             lblCustomName.TabIndex = 3;
@@ -198,24 +198,26 @@ namespace UI
             // lblFeedCategory
             // 
             lblFeedCategory.AutoSize = true;
-            lblFeedCategory.Location = new Point(6, 361);
+            lblFeedCategory.Location = new Point(10, 382);
             lblFeedCategory.Name = "lblFeedCategory";
             lblFeedCategory.Size = new Size(81, 15);
             lblFeedCategory.TabIndex = 3;
             lblFeedCategory.Text = "Feed category";
             lblFeedCategory.Click += lblFeedCategory_Click;
             // 
-            // cmbFeedCategory
+            // btnRename
             // 
-            cmbFeedCategory.DropDownStyle = ComboBoxStyle.DropDownList;
-            cmbFeedCategory.Location = new Point(6, 379);
-            cmbFeedCategory.Name = "cmbFeedCategory";
-            cmbFeedCategory.Size = new Size(235, 23);
-            cmbFeedCategory.TabIndex = 4;
+            btnRename.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
+            btnRename.Location = new Point(10, 344);
+            btnRename.Name = "btnRename";
+            btnRename.Size = new Size(110, 25);
+            btnRename.TabIndex = 8;
+            btnRename.Text = "Rename feed";
+            btnRename.Click += btnRename_Click;
             // 
             // btnSetCategory
             // 
-            btnSetCategory.Location = new Point(6, 408);
+            btnSetCategory.Location = new Point(10, 429);
             btnSetCategory.Name = "btnSetCategory";
             btnSetCategory.Size = new Size(110, 25);
             btnSetCategory.TabIndex = 5;
@@ -224,7 +226,7 @@ namespace UI
             // 
             // btnRemoveCategory
             // 
-            btnRemoveCategory.Location = new Point(135, 408);
+            btnRemoveCategory.Location = new Point(135, 429);
             btnRemoveCategory.Name = "btnRemoveCategory";
             btnRemoveCategory.Size = new Size(110, 25);
             btnRemoveCategory.TabIndex = 6;
@@ -234,22 +236,20 @@ namespace UI
             // btnDelete
             // 
             btnDelete.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
-            btnDelete.Location = new Point(6, 439);
+            btnDelete.Location = new Point(10, 469);
             btnDelete.Name = "btnDelete";
             btnDelete.Size = new Size(110, 25);
             btnDelete.TabIndex = 7;
             btnDelete.Text = "Remove feed";
             btnDelete.Click += btnDelete_Click;
             // 
-            // btnRename
+            // cmbFeedCategory
             // 
-            btnRename.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
-            btnRename.Location = new Point(10, 329);
-            btnRename.Name = "btnRename";
-            btnRename.Size = new Size(110, 25);
-            btnRename.TabIndex = 8;
-            btnRename.Text = "Rename feed";
-            btnRename.Click += btnRename_Click;
+            cmbFeedCategory.DropDownStyle = ComboBoxStyle.DropDownList;
+            cmbFeedCategory.Location = new Point(10, 400);
+            cmbFeedCategory.Name = "cmbFeedCategory";
+            cmbFeedCategory.Size = new Size(235, 23);
+            cmbFeedCategory.TabIndex = 4;
             // 
             // grpEpisodes
             // 
@@ -261,7 +261,7 @@ namespace UI
             grpEpisodes.Controls.Add(btnOpenExternalLink);
             grpEpisodes.Location = new Point(280, 80);
             grpEpisodes.Name = "grpEpisodes";
-            grpEpisodes.Size = new Size(530, 470);
+            grpEpisodes.Size = new Size(582, 598);
             grpEpisodes.TabIndex = 7;
             grpEpisodes.TabStop = false;
             grpEpisodes.Text = "Episode list";
@@ -278,7 +278,7 @@ namespace UI
             dgvEpisodes.ReadOnly = true;
             dgvEpisodes.RowHeadersVisible = false;
             dgvEpisodes.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
-            dgvEpisodes.Size = new Size(510, 220);
+            dgvEpisodes.Size = new Size(562, 220);
             dgvEpisodes.TabIndex = 0;
             dgvEpisodes.SelectionChanged += dgvEpisodes_SelectionChanged;
             // 
@@ -302,7 +302,7 @@ namespace UI
             lblEpisodeTitle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
             lblEpisodeTitle.Location = new Point(10, 250);
             lblEpisodeTitle.Name = "lblEpisodeTitle";
-            lblEpisodeTitle.Size = new Size(390, 20);
+            lblEpisodeTitle.Size = new Size(442, 20);
             lblEpisodeTitle.TabIndex = 1;
             lblEpisodeTitle.Text = "No episodes.";
             lblEpisodeTitle.Click += lblEpisodeTitle_Click;
@@ -311,7 +311,7 @@ namespace UI
             // 
             lblEpisodeCount.Anchor = AnchorStyles.Top | AnchorStyles.Right;
             lblEpisodeCount.Font = new Font("Segoe UI", 9F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            lblEpisodeCount.Location = new Point(400, 250);
+            lblEpisodeCount.Location = new Point(452, 250);
             lblEpisodeCount.Name = "lblEpisodeCount";
             lblEpisodeCount.Size = new Size(120, 20);
             lblEpisodeCount.TabIndex = 4;
@@ -327,13 +327,32 @@ namespace UI
             txtDescription.Name = "txtDescription";
             txtDescription.ReadOnly = true;
             txtDescription.ScrollBars = ScrollBars.Vertical;
-            txtDescription.Size = new Size(510, 150);
+            txtDescription.Size = new Size(562, 221);
             txtDescription.TabIndex = 2;
+            // 
+            // btnDeleteCategory
+            // 
+            btnDeleteCategory.Location = new Point(10, 400);
+            btnDeleteCategory.Name = "btnDeleteCategory";
+            btnDeleteCategory.Size = new Size(120, 25);
+            btnDeleteCategory.TabIndex = 9;
+            btnDeleteCategory.Text = "Delete category";
+            btnDeleteCategory.Click += btnDeleteCategory_Click;
+            // 
+            // btnRenameCategory
+            // 
+            btnRenameCategory.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            btnRenameCategory.Location = new Point(270, 354);
+            btnRenameCategory.Name = "btnRenameCategory";
+            btnRenameCategory.Size = new Size(80, 25);
+            btnRenameCategory.TabIndex = 8;
+            btnRenameCategory.Text = "Rename";
+            btnRenameCategory.Click += btnRenameCategory_Click;
             // 
             // btnOpenExternalLink
             // 
             btnOpenExternalLink.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
-            btnOpenExternalLink.Location = new Point(380, 430);
+            btnOpenExternalLink.Location = new Point(432, 514);
             btnOpenExternalLink.Name = "btnOpenExternalLink";
             btnOpenExternalLink.Size = new Size(140, 25);
             btnOpenExternalLink.TabIndex = 3;
@@ -344,18 +363,18 @@ namespace UI
             // 
             grpCategories.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Right;
             grpCategories.Controls.Add(lstCategoriesRight);
-            grpCategories.Controls.Add(lblNewCategory);
-            grpCategories.Controls.Add(txtNewCategoryName);
-            grpCategories.Controls.Add(btnCreateCategory);
-            grpCategories.Controls.Add(lblCategoryEdit);
-            grpCategories.Controls.Add(cmbCategoryEdit);
-            grpCategories.Controls.Add(lblNewCategoryName);
-            grpCategories.Controls.Add(txtEditCategoryName);
-            grpCategories.Controls.Add(btnRenameCategory);
             grpCategories.Controls.Add(btnDeleteCategory);
-            grpCategories.Location = new Point(820, 80);
+            grpCategories.Controls.Add(lblNewCategoryName);
+            grpCategories.Controls.Add(btnRenameCategory);
+            grpCategories.Controls.Add(btnCreateCategory);
+            grpCategories.Controls.Add(txtEditCategoryName);
+            grpCategories.Controls.Add(lblCategoryEdit);
+            grpCategories.Controls.Add(txtNewCategoryName);
+            grpCategories.Controls.Add(lblNewCategory);
+            grpCategories.Controls.Add(cmbCategoryEdit);
+            grpCategories.Location = new Point(868, 80);
             grpCategories.Name = "grpCategories";
-            grpCategories.Size = new Size(360, 470);
+            grpCategories.Size = new Size(360, 598);
             grpCategories.TabIndex = 8;
             grpCategories.TabStop = false;
             grpCategories.Text = "Categories";
@@ -365,99 +384,80 @@ namespace UI
             lstCategoriesRight.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
             lstCategoriesRight.Location = new Point(10, 22);
             lstCategoriesRight.Name = "lstCategoriesRight";
-            lstCategoriesRight.Size = new Size(340, 124);
+            lstCategoriesRight.Size = new Size(340, 154);
             lstCategoriesRight.TabIndex = 0;
             // 
-            // lblNewCategory
+            // lblNewCategoryName
             // 
-            lblNewCategory.AutoSize = true;
-            lblNewCategory.Location = new Point(10, 155);
-            lblNewCategory.Name = "lblNewCategory";
-            lblNewCategory.Size = new Size(126, 15);
-            lblNewCategory.TabIndex = 1;
-            lblNewCategory.Text = "New category (create):";
-            // 
-            // txtNewCategoryName
-            // 
-            txtNewCategoryName.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
-            txtNewCategoryName.Location = new Point(10, 173);
-            txtNewCategoryName.Name = "txtNewCategoryName";
-            txtNewCategoryName.Size = new Size(245, 23);
-            txtNewCategoryName.TabIndex = 2;
+            lblNewCategoryName.AutoSize = true;
+            lblNewCategoryName.Location = new Point(10, 336);
+            lblNewCategoryName.Name = "lblNewCategoryName";
+            lblNewCategoryName.Size = new Size(67, 15);
+            lblNewCategoryName.TabIndex = 6;
+            lblNewCategoryName.Text = "New name:";
             // 
             // btnCreateCategory
             // 
             btnCreateCategory.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            btnCreateCategory.Location = new Point(270, 172);
+            btnCreateCategory.Location = new Point(270, 219);
             btnCreateCategory.Name = "btnCreateCategory";
             btnCreateCategory.Size = new Size(80, 25);
             btnCreateCategory.TabIndex = 3;
             btnCreateCategory.Text = "Create";
             btnCreateCategory.Click += btnCreateCategory_Click;
             // 
+            // txtEditCategoryName
+            // 
+            txtEditCategoryName.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            txtEditCategoryName.Location = new Point(10, 354);
+            txtEditCategoryName.Name = "txtEditCategoryName";
+            txtEditCategoryName.Size = new Size(245, 23);
+            txtEditCategoryName.TabIndex = 7;
+            // 
             // lblCategoryEdit
             // 
             lblCategoryEdit.AutoSize = true;
-            lblCategoryEdit.Location = new Point(10, 210);
+            lblCategoryEdit.Location = new Point(10, 271);
             lblCategoryEdit.Name = "lblCategoryEdit";
             lblCategoryEdit.Size = new Size(95, 15);
             lblCategoryEdit.TabIndex = 4;
             lblCategoryEdit.Text = "Category to edit:";
             // 
+            // txtNewCategoryName
+            // 
+            txtNewCategoryName.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            txtNewCategoryName.Location = new Point(10, 219);
+            txtNewCategoryName.Name = "txtNewCategoryName";
+            txtNewCategoryName.Size = new Size(245, 23);
+            txtNewCategoryName.TabIndex = 2;
+            // 
+            // lblNewCategory
+            // 
+            lblNewCategory.AutoSize = true;
+            lblNewCategory.Location = new Point(10, 201);
+            lblNewCategory.Name = "lblNewCategory";
+            lblNewCategory.Size = new Size(126, 15);
+            lblNewCategory.TabIndex = 1;
+            lblNewCategory.Text = "New category (create):";
+            // 
             // cmbCategoryEdit
             // 
             cmbCategoryEdit.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
             cmbCategoryEdit.DropDownStyle = ComboBoxStyle.DropDownList;
-            cmbCategoryEdit.Location = new Point(10, 228);
+            cmbCategoryEdit.Location = new Point(10, 289);
             cmbCategoryEdit.Name = "cmbCategoryEdit";
             cmbCategoryEdit.Size = new Size(340, 23);
             cmbCategoryEdit.TabIndex = 5;
             // 
-            // lblNewCategoryName
-            // 
-            lblNewCategoryName.AutoSize = true;
-            lblNewCategoryName.Location = new Point(10, 260);
-            lblNewCategoryName.Name = "lblNewCategoryName";
-            lblNewCategoryName.Size = new Size(67, 15);
-            lblNewCategoryName.TabIndex = 6;
-            lblNewCategoryName.Text = "New name:";
-            // 
-            // txtEditCategoryName
-            // 
-            txtEditCategoryName.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
-            txtEditCategoryName.Location = new Point(10, 278);
-            txtEditCategoryName.Name = "txtEditCategoryName";
-            txtEditCategoryName.Size = new Size(245, 23);
-            txtEditCategoryName.TabIndex = 7;
-            // 
-            // btnRenameCategory
-            // 
-            btnRenameCategory.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            btnRenameCategory.Location = new Point(270, 277);
-            btnRenameCategory.Name = "btnRenameCategory";
-            btnRenameCategory.Size = new Size(80, 25);
-            btnRenameCategory.TabIndex = 8;
-            btnRenameCategory.Text = "Rename";
-            btnRenameCategory.Click += btnRenameCategory_Click;
-            // 
-            // btnDeleteCategory
-            // 
-            btnDeleteCategory.Location = new Point(10, 315);
-            btnDeleteCategory.Name = "btnDeleteCategory";
-            btnDeleteCategory.Size = new Size(120, 25);
-            btnDeleteCategory.TabIndex = 9;
-            btnDeleteCategory.Text = "Delete category";
-            btnDeleteCategory.Click += btnDeleteCategory_Click;
-            // 
             // txtLog
             // 
             txtLog.Anchor = AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
-            txtLog.Location = new Point(12, 560);
+            txtLog.Location = new Point(892, 27);
             txtLog.Multiline = true;
             txtLog.Name = "txtLog";
             txtLog.ReadOnly = true;
             txtLog.ScrollBars = ScrollBars.Vertical;
-            txtLog.Size = new Size(1168, 80);
+            txtLog.Size = new Size(241, 47);
             txtLog.TabIndex = 9;
             // 
             // lblRssUrl
@@ -473,7 +473,7 @@ namespace UI
             // 
             pictureBox1.Cursor = Cursors.Hand;
             pictureBox1.Image = Properties.Resources.loggo4;
-            pictureBox1.Location = new Point(558, -10);
+            pictureBox1.Location = new Point(540, -10);
             pictureBox1.Name = "pictureBox1";
             pictureBox1.Size = new Size(140, 106);
             pictureBox1.SizeMode = PictureBoxSizeMode.Zoom;
@@ -485,7 +485,7 @@ namespace UI
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(1200, 650);
+            ClientSize = new Size(1250, 700);
             Controls.Add(pictureBox1);
             Controls.Add(lblRssUrl);
             Controls.Add(txtRssUrl);
