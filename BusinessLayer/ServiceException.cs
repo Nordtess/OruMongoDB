@@ -18,7 +18,5 @@ namespace OruMongoDB.BusinessLayer.Exceptions
         public ServiceException() { }
         public ServiceException(string message) : base(message) { }
         public ServiceException(string message, Exception inner) : base(message, inner) { }
-
-        // Removed obsolete serialization constructor to avoid SYSLIB0051 warning.
     }
 }

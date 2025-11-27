@@ -61,6 +61,7 @@ namespace UI
             txtCustomName = new TextBox();
             btnSaveFeed = new Button();
             grpMyPodcasts = new GroupBox();
+            lblSelectedFeed = new Label();
             lblCategoryFilter = new Label();
             cmbCategoryFilter = new ComboBox();
             lstPodcasts = new ListBox();
@@ -138,6 +139,7 @@ namespace UI
             // grpMyPodcasts
             // 
             grpMyPodcasts.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left;
+            grpMyPodcasts.Controls.Add(lblSelectedFeed);
             grpMyPodcasts.Controls.Add(lblCategoryFilter);
             grpMyPodcasts.Controls.Add(cmbCategoryFilter);
             grpMyPodcasts.Controls.Add(lstPodcasts);
@@ -155,6 +157,16 @@ namespace UI
             grpMyPodcasts.TabIndex = 6;
             grpMyPodcasts.TabStop = false;
             grpMyPodcasts.Text = "My podcasts";
+            // 
+            // lblSelectedFeed
+            // 
+            lblSelectedFeed.AutoSize = true;
+            lblSelectedFeed.Location = new Point(12, 514);
+            lblSelectedFeed.Name = "lblSelectedFeed";
+            lblSelectedFeed.Size = new Size(38, 15);
+            lblSelectedFeed.TabIndex = 9;
+            lblSelectedFeed.Text = "label1";
+            lblSelectedFeed.Click += lblSelectedFeed_Click;
             // 
             // lblCategoryFilter
             // 
@@ -461,9 +473,9 @@ namespace UI
             pictureBox1.BackColor = Color.Transparent;
             pictureBox1.Cursor = Cursors.Hand;
             pictureBox1.Image = Properties.Resources.loggo4;
-            pictureBox1.Location = new Point(553, 1);
+            pictureBox1.Location = new Point(563, 12);
             pictureBox1.Name = "pictureBox1";
-            pictureBox1.Size = new Size(117, 82);
+            pictureBox1.Size = new Size(103, 62);
             pictureBox1.SizeMode = PictureBoxSizeMode.StretchImage;
             pictureBox1.TabIndex = 0;
             pictureBox1.TabStop = false;
@@ -496,5 +508,6 @@ namespace UI
             ResumeLayout(false);
             PerformLayout();
         }
+        private Label lblSelectedFeed;
     }
 }

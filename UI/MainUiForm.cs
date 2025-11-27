@@ -44,6 +44,9 @@ namespace UI
         {
             try
             {
+                // Ensure the selected-feed label is initialized on startup
+                UpdateSelectedFeedLabel();
+
                 await LoadCategoriesAsync();
                 await LoadSavedFeedsAsync();
             }
@@ -78,6 +81,7 @@ namespace UI
                 lblEpisodeTitle.Text = "No episodes.";
                 lblEpisodeCount.Text = "Episodes:0";
                 txtDescription.Clear();
+                UpdateSelectedFeedLabel();
                 try
                 {
                     // Try read-through cache from DB first (fast path)
@@ -88,6 +92,7 @@ namespace UI
                     txtCustomName.Text = _currentFlode.displayName;
                     SyncFeedCategoryFromFeed(_currentFlode);
                     FillEpisodesGrid(_currentEpisodes);
+                    UpdateSelectedFeedLabel();
                     MessageBox.Show(
                         $"Loaded {_currentEpisodes.Count} episodes for '{_currentFlode.displayName}'.",
                         "Loaded", MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -103,8 +108,9 @@ namespace UI
                 _currentEpisodes = netResult.avsnitt ?? new List<PoddAvsnitt>();
                 _currentFlode.IsSaved = false;
                 txtCustomName.Text = _currentFlode.displayName;
-                if (cmbFeedCategory.Items.Count >0) cmbFeedCategory.SelectedIndex =0;
+                if (cmbFeedCategory.Items.Count > 0) cmbFeedCategory.SelectedIndex = 0;
                 FillEpisodesGrid(_currentEpisodes);
+                UpdateSelectedFeedLabel();
                 MessageBox.Show(
                     $"Loaded {_currentEpisodes.Count} episodes for '{_currentFlode.displayName}'.",
                     "Loaded", MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -134,12 +140,13 @@ namespace UI
                 _currentFlode!.displayName = customName;
                 foreach (var ep in _currentEpisodes)
                 {
-                ep.feedId = _currentFlode.Id!;
-                ep.description = HtmlCleaner.ToPlainText(ep.description);
+                    ep.feedId = _currentFlode.Id!;
+                    ep.description = HtmlCleaner.ToPlainText(ep.description);
                 }
                 await _poddService.SavePoddSubscriptionAsync(_currentFlode, _currentEpisodes);
                 _currentFlode.IsSaved = true;
                 _currentFlode.SavedAt = DateTime.UtcNow;
+                UpdateSelectedFeedLabel();
                 MessageBox.Show("Feed and episodes saved.", "Done",
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
                 await LoadSavedFeedsAsync();
@@ -178,9 +185,9 @@ namespace UI
             cmbFeedCategory.DisplayMember = "Namn";
             cmbCategoryEdit.DisplayMember = "Namn";
             lstCategoriesRight.DisplayMember = "Namn";
-            if (cmbCategoryFilter.Items.Count >0) cmbCategoryFilter.SelectedIndex =0;
-            if (cmbFeedCategory.Items.Count >0) cmbFeedCategory.SelectedIndex =0;
-            if (cmbCategoryEdit.Items.Count >0) cmbCategoryEdit.SelectedIndex =0;
+            if (cmbCategoryFilter.Items.Count > 0) cmbCategoryFilter.SelectedIndex = 0;
+            if (cmbFeedCategory.Items.Count > 0) cmbFeedCategory.SelectedIndex = 0;
+            if (cmbCategoryEdit.Items.Count > 0) cmbCategoryEdit.SelectedIndex = 0;
         }
 
         // Load saved feeds and apply any active category filter
@@ -199,7 +206,7 @@ namespace UI
             if (cmbCategoryFilter.SelectedItem is Kategori selectedCat)
                 filtered = filtered.Where(f => f.categoryId == selectedCat.Id);
             var list = filtered.ToList();
-            if (list.Count ==0)
+            if (list.Count == 0)
                 lstPodcasts.Items.Add("No podcasts found.");
             else
             {
@@ -215,22 +222,27 @@ namespace UI
         {
             if (string.IsNullOrEmpty(feed.categoryId))
             {
-                if (cmbFeedCategory.Items.Count >0) cmbFeedCategory.SelectedIndex =0;
+                if (cmbFeedCategory.Items.Count > 0) cmbFeedCategory.SelectedIndex = 0;
                 return;
             }
             var cat = _allCategories.FirstOrDefault(c => c.Id == feed.categoryId);
-            cmbFeedCategory.SelectedItem = cat ?? (cmbFeedCategory.Items.Count >0 ? cmbFeedCategory.Items[0] : null);
+            cmbFeedCategory.SelectedItem = cat ?? (cmbFeedCategory.Items.Count > 0 ? cmbFeedCategory.Items[0] : null);
         }
 
         // Selecting a podcast loads its episodes from DB
         private async void lstPodcasts_SelectedIndexChanged(object? sender, EventArgs e)
         {
             if (lstPodcasts.SelectedItem is not Poddflöden selected || string.IsNullOrWhiteSpace(selected.rssUrl))
+            {
+                UpdateSelectedFeedLabel();
                 return;
+            }
             _currentFlode = selected;
+            _currentFlode.IsSaved = true; // Selecting from saved list implies persisted feed
             txtCustomName.Text = selected.displayName;
             txtRssUrl.Text = selected.rssUrl;
             SyncFeedCategoryFromFeed(selected);
+            UpdateSelectedFeedLabel();
             try
             {
                 var result = await _poddService.FetchFromDatabaseAsync(selected.rssUrl);
@@ -295,7 +307,7 @@ namespace UI
                 _currentFlode.categoryId = string.Empty;
                 var match = _allSavedFeeds.FirstOrDefault(f => f.Id == _currentFlode.Id);
                 if (match != null) match.categoryId = string.Empty;
-                if (cmbFeedCategory.Items.Count >0) cmbFeedCategory.SelectedIndex =0;
+                if (cmbFeedCategory.Items.Count > 0) cmbFeedCategory.SelectedIndex = 0;
 
                 MessageBox.Show("Category removed from feed.", "Done",
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -340,6 +352,7 @@ namespace UI
                     lblEpisodeCount.Text = "Episodes:0";
                     txtDescription.Clear();
                 }
+                UpdateSelectedFeedLabel();
                 MessageBox.Show("Feed removed.", "Done",
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
@@ -364,6 +377,7 @@ namespace UI
                 // Refresh data binding to show the new display name
                 lstPodcasts.DisplayMember = "";
                 lstPodcasts.DisplayMember = "displayName";
+                UpdateSelectedFeedLabel();
                 MessageBox.Show("Feed renamed.", "Done",
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
@@ -473,7 +487,7 @@ namespace UI
             foreach (var ep in avsnitt)
                 dgvEpisodes.Rows.Add(ep.title, ep.publishDate);
             lblEpisodeCount.Text = $"Episodes: {avsnitt.Count}";
-            if (dgvEpisodes.Rows.Count >0)
+            if (dgvEpisodes.Rows.Count > 0)
             {
                 dgvEpisodes.ClearSelection();
                 dgvEpisodes.Rows[0].Selected = true;
@@ -492,10 +506,10 @@ namespace UI
         private bool TryGetSelectedEpisode(out PoddAvsnitt ep)
         {
             ep = null!;
-            if (_currentEpisodes.Count ==0) return false;
-            if (dgvEpisodes.SelectedRows.Count ==0) return false;
+            if (_currentEpisodes.Count == 0) return false;
+            if (dgvEpisodes.SelectedRows.Count == 0) return false;
             int index = dgvEpisodes.SelectedRows[0].Index;
-            if (index <0 || index >= _currentEpisodes.Count) return false;
+            if (index < 0 || index >= _currentEpisodes.Count) return false;
             ep = _currentEpisodes[index];
             return true;
         }
@@ -542,13 +556,35 @@ namespace UI
             UiHelpers.ApplyTheme(
             this,
             new[] { grpMyPodcasts, grpEpisodes, grpCategories },
-            new[] { lblRssUrl, lblCategoryFilter, lblCustomName, lblFeedCategory, lblNewCategory, lblCategoryEdit, lblNewCategoryName },
+            new[] { lblRssUrl, lblCategoryFilter, lblCustomName, lblFeedCategory, lblNewCategory, lblCategoryEdit, lblNewCategoryName, lblSelectedFeed },
             new[] { txtRssUrl, txtCustomName, txtNewCategoryName, txtEditCategoryName, txtDescription },
             new[] { lstPodcasts, lstCategoriesRight },
             new[] { cmbCategoryFilter, cmbFeedCategory, cmbCategoryEdit },
             new[] { btnFetch, btnSaveFeed, btnOpenExternalLink, btnSetCategory, btnRemoveCategory, btnDelete, btnRename, btnCreateCategory, btnRenameCategory, btnDeleteCategory },
             dgvEpisodes,
             pictureBox1);
+        }
+
+        private void lblSelectedFeed_Click(object sender, EventArgs e)
+        {
+            // No-op: label reflects selection automatically via UpdateSelectedFeedLabel()
+        }
+
+        // Updates the Selected Feed label to reflect current saved selection
+        private void UpdateSelectedFeedLabel()
+        {
+            string text;
+            var isSaved = _currentFlode != null && (_currentFlode.IsSaved || (_currentFlode.Id != null && _allSavedFeeds.Any(f => f.Id == _currentFlode.Id)));
+            if (isSaved && !string.IsNullOrWhiteSpace(_currentFlode!.displayName))
+            {
+                text = $"Selected feed: {_currentFlode.displayName}";
+            }
+            else
+            {
+                text = "(No saved feed selected)";
+            }
+
+            lblSelectedFeed.Text = text;
         }
     }
 }
