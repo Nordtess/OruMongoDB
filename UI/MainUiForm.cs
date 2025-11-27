@@ -28,10 +28,17 @@ namespace UI
             // Show hint text in rename field; user types new name without erasing current name
             txtCustomName.PlaceholderText = "Enter new name";
 
+            // Category text fields: placeholders + clear-on-deselect behavior
+            txtNewCategoryName.PlaceholderText = "Enter new category name";
+            txtEditCategoryName.PlaceholderText = "Enter category name to change to";
+            lblNewCategoryName.Text = "New category name:";
+
             // Set label3 text and wire up clear-on-deselect behavior
             label3.Text = "Save as:";
             txtCustomName.Leave += ClearTextBoxOnLeave;
             textBox1.Leave += ClearTextBoxOnLeave;
+            txtNewCategoryName.Leave += ClearTextBoxOnLeave;
+            txtEditCategoryName.Leave += ClearTextBoxOnLeave;
 
             ApplyTheme();
             _poddService = ServiceFactory.CreatePoddService();
@@ -614,7 +621,7 @@ namespace UI
         {
             if (sender is not TextBox tb) return;
             var next = this.ActiveControl;
-            if (next == btnSaveFeed || next == btnRename) return;
+            if (next == btnSaveFeed || next == btnRename || next == btnCreateCategory || next == btnRenameCategory) return;
             tb.Clear();
         }
 
