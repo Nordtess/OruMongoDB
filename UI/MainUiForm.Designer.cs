@@ -174,9 +174,9 @@ namespace UI
             lblCategoryFilter.AutoSize = true;
             lblCategoryFilter.Location = new Point(10, 22);
             lblCategoryFilter.Name = "lblCategoryFilter";
-            lblCategoryFilter.Size = new Size(55, 15);
+            lblCategoryFilter.Size = new Size(94, 15);
             lblCategoryFilter.TabIndex = 0;
-            lblCategoryFilter.Text = "Category";
+            lblCategoryFilter.Text = "Sort by category"; // Updated text
             // 
             // cmbCategoryFilter
             // 

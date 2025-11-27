@@ -591,7 +591,12 @@ namespace UI
 
         private void txtCustomName_TextChanged(object sender, EventArgs e)
         {
-            // Intentionally left blank. Rename textbox now uses placeholder; we avoid mirroring selected name here.
+            
+        }
+
+        private void lblCategoryFilter_Click(object sender, EventArgs e)
+        {
+
         }
     }
 }
