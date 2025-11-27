@@ -27,6 +27,12 @@ namespace UI
             InitializeComponent();
             // Show hint text in rename field; user types new name without erasing current name
             txtCustomName.PlaceholderText = "Enter new name";
+
+            // Set label3 text and wire up clear-on-deselect behavior
+            label3.Text = "Save as:";
+            txtCustomName.Leave += ClearTextBoxOnLeave;
+            textBox1.Leave += ClearTextBoxOnLeave;
+
             ApplyTheme();
             _poddService = ServiceFactory.CreatePoddService();
             _categoryService = ServiceFactory.CreateCategoryService();
@@ -145,9 +151,10 @@ namespace UI
                     $"Loaded {_currentEpisodes.Count} episodes for '{_currentFlode.displayName}'.",
                     "Loaded", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
-            catch (ValidationException vex)
+            catch (ValidationException)
             {
-                MessageBox.Show(vex.Message, "Validation error",
+                // Show a clean message if URL cannot be accessed (e.g.,4xx/5xx or network error)
+                MessageBox.Show("Could not access the URL, please check the link and try again!", "Validation error",
                     MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
             catch (Exception ex)
@@ -165,21 +172,18 @@ namespace UI
                 PoddValidator.EnsureFeedSelected(_currentFlode!);
                 PoddValidator.EnsureEpisodesExist(_currentEpisodes);
 
-                // Determine custom name based on saved/unsaved state and inputs
-                string customName;
+                // If already saved, inform user and stop. Use Rename for name changes.
                 if (_currentFlode!.IsSaved)
                 {
-                    // Saved feeds: only `txtCustomName` can rename; enforce validation
-                    customName = txtCustomName.Text.Trim();
-                    PoddValidator.ValidateFeedName(customName);
+                    MessageBox.Show("This feed is already saved.", "Info",
+                        MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return;
                 }
-                else
-                {
-                    // Unsaved feeds: allow `textBox1` to set initial custom name; fallback to fetched displayName
-                    var unsavedName = textBox1.Text.Trim();
-                    customName = string.IsNullOrWhiteSpace(unsavedName) ? _currentFlode.displayName : unsavedName;
-                    PoddValidator.ValidateFeedName(customName);
-                }
+
+                // Determine custom name for a new (unsaved) feed
+                var unsavedName = textBox1.Text.Trim();
+                var customName = string.IsNullOrWhiteSpace(unsavedName) ? _currentFlode.displayName : unsavedName;
+                PoddValidator.ValidateFeedName(customName);
 
                 _currentFlode!.displayName = customName;
                 foreach (var ep in _currentEpisodes)
@@ -195,6 +199,10 @@ namespace UI
                 MessageBox.Show("Feed and episodes saved.", "Done",
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
                 await LoadSavedFeedsAsync();
+
+                // Clear inputs after successful save to keep UI clean
+                textBox1.Clear();
+                txtCustomName.Clear();
             }
             catch (ValidationException vex)
             {
@@ -433,6 +441,9 @@ namespace UI
                 UpdateFetchedFeedLabel();
                 MessageBox.Show("Feed renamed.", "Done",
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                // Clear rename box after successful rename
+                txtCustomName.Clear();
             }
             catch (ValidationException vex)
             {
@@ -588,13 +599,23 @@ namespace UI
             UiHelpers.ApplyTheme(
             this,
             new[] { grpMyPodcasts, grpEpisodes, grpCategories },
-            new[] { lblRssUrl, lblCategoryFilter, lblCustomName, lblFeedCategory, lblNewCategory, lblCategoryEdit, lblNewCategoryName, lblSelectedFeed, label2 },
+            // Include label3 so it picks the same bright white style
+            new[] { lblRssUrl, lblCategoryFilter, lblCustomName, lblFeedCategory, lblNewCategory, lblCategoryEdit, lblNewCategoryName, lblSelectedFeed, label2, label3 },
             new[] { txtRssUrl, txtCustomName, txtNewCategoryName, txtEditCategoryName, txtDescription, textBox1 },
             new[] { lstPodcasts, lstCategoriesRight },
             new[] { cmbCategoryFilter, cmbFeedCategory, cmbCategoryEdit },
             new[] { btnFetch, btnSaveFeed, btnOpenExternalLink, btnSetCategory, btnRemoveCategory, btnDelete, btnRename, btnCreateCategory, btnRenameCategory, btnDeleteCategory },
             dgvEpisodes,
             pictureBox1);
+        }
+
+        // Clears text inputs when they lose focus unless moving to an action button
+        private void ClearTextBoxOnLeave(object? sender, EventArgs e)
+        {
+            if (sender is not TextBox tb) return;
+            var next = this.ActiveControl;
+            if (next == btnSaveFeed || next == btnRename) return;
+            tb.Clear();
         }
 
         private void lblSelectedFeed_Click(object sender, EventArgs e)

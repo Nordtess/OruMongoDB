@@ -98,6 +98,7 @@ namespace UI
             pictureBox1 = new PictureBox();
             label2 = new Label();
             textBox1 = new TextBox();
+            label3 = new Label();
             grpMyPodcasts.SuspendLayout();
             grpEpisodes.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)dgvEpisodes).BeginInit();
@@ -505,11 +506,21 @@ namespace UI
             textBox1.Size = new Size(235, 23);
             textBox1.TabIndex = 11;
             // 
+            // label3
+            // 
+            label3.AutoSize = true;
+            label3.Location = new Point(878, 42);
+            label3.Name = "label3";
+            label3.Size = new Size(38, 15);
+            label3.TabIndex = 12;
+            label3.Text = "label3";
+            // 
             // MainUiForm
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(1250, 700);
+            Controls.Add(label3);
             Controls.Add(textBox1);
             Controls.Add(label2);
             Controls.Add(pictureBox1);
@@ -535,5 +546,6 @@ namespace UI
             PerformLayout();
         }
         private Label lblSelectedFeed;
+        private Label label3;
     }
 }
