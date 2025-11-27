@@ -9,15 +9,6 @@ using OruMongoDB.BusinessLayer;
 using OruMongoDB.Domain;
 using OruMongoDB.Core.Helpers;
 
-/*
- Summary:
- Main Windows Forms UI for managing podcast subscriptions and categories.
- Interacts with the BusinessLayer services that use MongoDB Driver against MongoDB Atlas
- for persistent storage. All long-running operations are async to keep the UI responsive,
- and exceptions are handled to avoid crashes. Users can fetch feeds, save them with
- episodes, assign/remove categories, and manage categories.
-*/
-
 namespace UI
 {
     public partial class MainUiForm : Form
@@ -34,6 +25,21 @@ namespace UI
         public MainUiForm()
         {
             InitializeComponent();
+            // Show hint text in rename field; user types new name without erasing current name
+            txtCustomName.PlaceholderText = "Enter new name";
+
+            // Category text fields: placeholders + clear-on-deselect behavior
+            txtNewCategoryName.PlaceholderText = "Enter new category name";
+            txtEditCategoryName.PlaceholderText = "Enter category name to change to";
+            lblNewCategoryName.Text = "New category name:";
+
+            // Set label3 text and wire up clear-on-deselect behavior
+            label3.Text = "Save as:";
+            txtCustomName.Leave += ClearTextBoxOnLeave;
+            textBox1.Leave += ClearTextBoxOnLeave;
+            txtNewCategoryName.Leave += ClearTextBoxOnLeave;
+            txtEditCategoryName.Leave += ClearTextBoxOnLeave;
+
             ApplyTheme();
             _poddService = ServiceFactory.CreatePoddService();
             _categoryService = ServiceFactory.CreateCategoryService();
@@ -44,6 +50,9 @@ namespace UI
         {
             try
             {
+                // Ensure the selected-feed label is initialized on startup
+                UpdateSelectedFeedLabel();
+
                 await LoadCategoriesAsync();
                 await LoadSavedFeedsAsync();
             }
@@ -51,6 +60,42 @@ namespace UI
             {
                 MessageBox.Show("Error during startup: " + ex.Message, "Startup error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        // Open episode external link in the system default browser
+        private void btnOpenExternalLink_Click(object? sender, EventArgs e)
+        {
+            if (!TryGetSelectedEpisode(out var ep)) return;
+            if (string.IsNullOrWhiteSpace(ep.link))
+            {
+                MessageBox.Show("Episode has no link.", "Info",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+            try
+            {
+                Process.Start(new ProcessStartInfo { FileName = ep.link, UseShellExecute = true });
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Could not open link: " + ex.Message, "Technical error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        // Helper: update the temporary fetched feed label (label2)
+        private void UpdateFetchedFeedLabel()
+        {
+            if (_currentFlode != null && !_currentFlode.IsSaved && !string.IsNullOrWhiteSpace(_currentFlode.displayName))
+            {
+                label2.Text = $"Fetched feed: {_currentFlode.displayName}";
+                label2.Visible = true;
+            }
+            else
+            {
+                label2.Visible = false;
+                label2.Text = string.Empty;
             }
         }
 
@@ -78,6 +123,8 @@ namespace UI
                 lblEpisodeTitle.Text = "No episodes.";
                 lblEpisodeCount.Text = "Episodes:0";
                 txtDescription.Clear();
+                UpdateSelectedFeedLabel();
+                UpdateFetchedFeedLabel();
                 try
                 {
                     // Try read-through cache from DB first (fast path)
@@ -85,9 +132,10 @@ namespace UI
                     _currentFlode = dbResult.poddflode;
                     _currentEpisodes = dbResult.avsnitt ?? new List<PoddAvsnitt>();
                     _currentFlode.IsSaved = true;
-                    txtCustomName.Text = _currentFlode.displayName;
                     SyncFeedCategoryFromFeed(_currentFlode);
                     FillEpisodesGrid(_currentEpisodes);
+                    UpdateSelectedFeedLabel();
+                    UpdateFetchedFeedLabel();
                     MessageBox.Show(
                         $"Loaded {_currentEpisodes.Count} episodes for '{_currentFlode.displayName}'.",
                         "Loaded", MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -102,16 +150,18 @@ namespace UI
                 _currentFlode = netResult.poddflode;
                 _currentEpisodes = netResult.avsnitt ?? new List<PoddAvsnitt>();
                 _currentFlode.IsSaved = false;
-                txtCustomName.Text = _currentFlode.displayName;
                 if (cmbFeedCategory.Items.Count >0) cmbFeedCategory.SelectedIndex =0;
                 FillEpisodesGrid(_currentEpisodes);
+                UpdateSelectedFeedLabel();
+                UpdateFetchedFeedLabel();
                 MessageBox.Show(
                     $"Loaded {_currentEpisodes.Count} episodes for '{_currentFlode.displayName}'.",
                     "Loaded", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
-            catch (ValidationException vex)
+            catch (ValidationException)
             {
-                MessageBox.Show(vex.Message, "Validation error",
+                // Show a clean message if URL cannot be accessed (e.g.,4xx/5xx or network error)
+                MessageBox.Show("Could not access the URL, please check the link and try again!", "Validation error",
                     MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
             catch (Exception ex)
@@ -127,22 +177,39 @@ namespace UI
             try
             {
                 PoddValidator.EnsureFeedSelected(_currentFlode!);
-                PoddValidator.EnsureFeedNotAlreadySaved(_currentFlode!);
                 PoddValidator.EnsureEpisodesExist(_currentEpisodes);
-                var customName = txtCustomName.Text.Trim();
+
+                // If already saved, inform user and stop. Use Rename for name changes.
+                if (_currentFlode!.IsSaved)
+                {
+                    MessageBox.Show("This feed is already saved.", "Info",
+                        MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return;
+                }
+
+                // Determine custom name for a new (unsaved) feed
+                var unsavedName = textBox1.Text.Trim();
+                var customName = string.IsNullOrWhiteSpace(unsavedName) ? _currentFlode.displayName : unsavedName;
                 PoddValidator.ValidateFeedName(customName);
+
                 _currentFlode!.displayName = customName;
                 foreach (var ep in _currentEpisodes)
                 {
-                ep.feedId = _currentFlode.Id!;
-                ep.description = HtmlCleaner.ToPlainText(ep.description);
+                    ep.feedId = _currentFlode.Id!;
+                    ep.description = HtmlCleaner.ToPlainText(ep.description);
                 }
                 await _poddService.SavePoddSubscriptionAsync(_currentFlode, _currentEpisodes);
                 _currentFlode.IsSaved = true;
                 _currentFlode.SavedAt = DateTime.UtcNow;
+                UpdateSelectedFeedLabel();
+                UpdateFetchedFeedLabel();
                 MessageBox.Show("Feed and episodes saved.", "Done",
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
                 await LoadSavedFeedsAsync();
+
+                // Clear inputs after successful save to keep UI clean
+                textBox1.Clear();
+                txtCustomName.Clear();
             }
             catch (ValidationException vex)
             {
@@ -178,9 +245,9 @@ namespace UI
             cmbFeedCategory.DisplayMember = "Namn";
             cmbCategoryEdit.DisplayMember = "Namn";
             lstCategoriesRight.DisplayMember = "Namn";
-            if (cmbCategoryFilter.Items.Count >0) cmbCategoryFilter.SelectedIndex =0;
-            if (cmbFeedCategory.Items.Count >0) cmbFeedCategory.SelectedIndex =0;
-            if (cmbCategoryEdit.Items.Count >0) cmbCategoryEdit.SelectedIndex =0;
+            if (cmbCategoryFilter.Items.Count > 0) cmbCategoryFilter.SelectedIndex = 0;
+            if (cmbFeedCategory.Items.Count > 0) cmbFeedCategory.SelectedIndex = 0;
+            if (cmbCategoryEdit.Items.Count > 0) cmbCategoryEdit.SelectedIndex = 0;
         }
 
         // Load saved feeds and apply any active category filter
@@ -199,7 +266,7 @@ namespace UI
             if (cmbCategoryFilter.SelectedItem is Kategori selectedCat)
                 filtered = filtered.Where(f => f.categoryId == selectedCat.Id);
             var list = filtered.ToList();
-            if (list.Count ==0)
+            if (list.Count == 0)
                 lstPodcasts.Items.Add("No podcasts found.");
             else
             {
@@ -215,22 +282,28 @@ namespace UI
         {
             if (string.IsNullOrEmpty(feed.categoryId))
             {
-                if (cmbFeedCategory.Items.Count >0) cmbFeedCategory.SelectedIndex =0;
+                if (cmbFeedCategory.Items.Count > 0) cmbFeedCategory.SelectedIndex = 0;
                 return;
             }
             var cat = _allCategories.FirstOrDefault(c => c.Id == feed.categoryId);
-            cmbFeedCategory.SelectedItem = cat ?? (cmbFeedCategory.Items.Count >0 ? cmbFeedCategory.Items[0] : null);
+            cmbFeedCategory.SelectedItem = cat ?? (cmbFeedCategory.Items.Count > 0 ? cmbFeedCategory.Items[0] : null);
         }
 
         // Selecting a podcast loads its episodes from DB
         private async void lstPodcasts_SelectedIndexChanged(object? sender, EventArgs e)
         {
             if (lstPodcasts.SelectedItem is not Poddflöden selected || string.IsNullOrWhiteSpace(selected.rssUrl))
+            {
+                UpdateSelectedFeedLabel();
+                UpdateFetchedFeedLabel();
                 return;
+            }
             _currentFlode = selected;
-            txtCustomName.Text = selected.displayName;
+            _currentFlode.IsSaved = true; // Selecting from saved list implies persisted feed
             txtRssUrl.Text = selected.rssUrl;
             SyncFeedCategoryFromFeed(selected);
+            UpdateSelectedFeedLabel();
+            UpdateFetchedFeedLabel();
             try
             {
                 var result = await _poddService.FetchFromDatabaseAsync(selected.rssUrl);
@@ -295,7 +368,7 @@ namespace UI
                 _currentFlode.categoryId = string.Empty;
                 var match = _allSavedFeeds.FirstOrDefault(f => f.Id == _currentFlode.Id);
                 if (match != null) match.categoryId = string.Empty;
-                if (cmbFeedCategory.Items.Count >0) cmbFeedCategory.SelectedIndex =0;
+                if (cmbFeedCategory.Items.Count > 0) cmbFeedCategory.SelectedIndex = 0;
 
                 MessageBox.Show("Category removed from feed.", "Done",
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -340,6 +413,8 @@ namespace UI
                     lblEpisodeCount.Text = "Episodes:0";
                     txtDescription.Clear();
                 }
+                UpdateSelectedFeedLabel();
+                UpdateFetchedFeedLabel();
                 MessageBox.Show("Feed removed.", "Done",
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
@@ -357,6 +432,11 @@ namespace UI
             {
                 if (lstPodcasts.SelectedItem is not Poddflöden selected)
                     throw new ValidationException("Select a feed first.");
+
+                // Enforce: rename only for saved feeds
+                if (!_currentFlode?.IsSaved ?? false)
+                    throw new ValidationException("You can only rename feeds that are saved.");
+
                 var newName = txtCustomName.Text.Trim();
                 PoddValidator.EnsureFeedRenameValid(selected, newName);
                 await _poddService.RenameFeedAsync(selected.Id!, newName);
@@ -364,8 +444,13 @@ namespace UI
                 // Refresh data binding to show the new display name
                 lstPodcasts.DisplayMember = "";
                 lstPodcasts.DisplayMember = "displayName";
+                UpdateSelectedFeedLabel();
+                UpdateFetchedFeedLabel();
                 MessageBox.Show("Feed renamed.", "Done",
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                // Clear rename box after successful rename
+                txtCustomName.Clear();
             }
             catch (ValidationException vex)
             {
@@ -473,7 +558,7 @@ namespace UI
             foreach (var ep in avsnitt)
                 dgvEpisodes.Rows.Add(ep.title, ep.publishDate);
             lblEpisodeCount.Text = $"Episodes: {avsnitt.Count}";
-            if (dgvEpisodes.Rows.Count >0)
+            if (dgvEpisodes.Rows.Count > 0)
             {
                 dgvEpisodes.ClearSelection();
                 dgvEpisodes.Rows[0].Selected = true;
@@ -492,10 +577,10 @@ namespace UI
         private bool TryGetSelectedEpisode(out PoddAvsnitt ep)
         {
             ep = null!;
-            if (_currentEpisodes.Count ==0) return false;
-            if (dgvEpisodes.SelectedRows.Count ==0) return false;
+            if (_currentEpisodes.Count == 0) return false;
+            if (dgvEpisodes.SelectedRows.Count == 0) return false;
             int index = dgvEpisodes.SelectedRows[0].Index;
-            if (index <0 || index >= _currentEpisodes.Count) return false;
+            if (index < 0 || index >= _currentEpisodes.Count) return false;
             ep = _currentEpisodes[index];
             return true;
         }
@@ -507,27 +592,6 @@ namespace UI
             lblEpisodeTitle.Text = ep.title;
             var cleanDesc = HtmlCleaner.ToPlainText(ep.description);
             txtDescription.Text = $"Title: {ep.title}\r\nPublished: {ep.publishDate}\r\n\r\n{cleanDesc}";
-        }
-
-        // Open episode external link in the system default browser
-        private void btnOpenExternalLink_Click(object? sender, EventArgs e)
-        {
-            if (!TryGetSelectedEpisode(out var ep)) return;
-            if (string.IsNullOrWhiteSpace(ep.link))
-            {
-                MessageBox.Show("Episode has no link.", "Info",
-                    MessageBoxButtons.OK, MessageBoxIcon.Information);
-                return;
-            }
-            try
-            {
-                Process.Start(new ProcessStartInfo { FileName = ep.link, UseShellExecute = true });
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show("Could not open link: " + ex.Message, "Technical error",
-                    MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
         }
 
         // Theme helper encapsulation to keep this form lean
@@ -542,13 +606,55 @@ namespace UI
             UiHelpers.ApplyTheme(
             this,
             new[] { grpMyPodcasts, grpEpisodes, grpCategories },
-            new[] { lblRssUrl, lblCategoryFilter, lblCustomName, lblFeedCategory, lblNewCategory, lblCategoryEdit, lblNewCategoryName },
-            new[] { txtRssUrl, txtCustomName, txtNewCategoryName, txtEditCategoryName, txtDescription },
+            // Include label3 so it picks the same bright white style
+            new[] { lblRssUrl, lblCategoryFilter, lblCustomName, lblFeedCategory, lblNewCategory, lblCategoryEdit, lblNewCategoryName, lblSelectedFeed, label2, label3 },
+            new[] { txtRssUrl, txtCustomName, txtNewCategoryName, txtEditCategoryName, txtDescription, textBox1 },
             new[] { lstPodcasts, lstCategoriesRight },
             new[] { cmbCategoryFilter, cmbFeedCategory, cmbCategoryEdit },
             new[] { btnFetch, btnSaveFeed, btnOpenExternalLink, btnSetCategory, btnRemoveCategory, btnDelete, btnRename, btnCreateCategory, btnRenameCategory, btnDeleteCategory },
             dgvEpisodes,
             pictureBox1);
+        }
+
+        // Clears text inputs when they lose focus unless moving to an action button
+        private void ClearTextBoxOnLeave(object? sender, EventArgs e)
+        {
+            if (sender is not TextBox tb) return;
+            var next = this.ActiveControl;
+            if (next == btnSaveFeed || next == btnRename || next == btnCreateCategory || next == btnRenameCategory) return;
+            tb.Clear();
+        }
+
+        private void lblSelectedFeed_Click(object sender, EventArgs e)
+        {
+            // No-op: label reflects selection automatically via UpdateSelectedFeedLabel()
+        }
+
+        // Updates the Selected Feed label to reflect current saved selection
+        private void UpdateSelectedFeedLabel()
+        {
+            string text;
+            var isSaved = _currentFlode != null && (_currentFlode.IsSaved || (_currentFlode.Id != null && _allSavedFeeds.Any(f => f.Id == _currentFlode.Id)));
+            if (isSaved && !string.IsNullOrWhiteSpace(_currentFlode!.displayName))
+            {
+                text = $"Selected feed: {_currentFlode.displayName}";
+            }
+            else
+            {
+                text = "(No saved feed selected)";
+            }
+
+            lblSelectedFeed.Text = text;
+        }
+
+        private void txtCustomName_TextChanged(object sender, EventArgs e)
+        {
+
+        }
+
+        private void lblCategoryFilter_Click(object sender, EventArgs e)
+        {
+
         }
     }
 }

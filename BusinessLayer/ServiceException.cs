@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Runtime.Serialization;
 
 /*
  Summary
@@ -19,8 +18,5 @@ namespace OruMongoDB.BusinessLayer.Exceptions
         public ServiceException() { }
         public ServiceException(string message) : base(message) { }
         public ServiceException(string message, Exception inner) : base(message, inner) { }
-
-        // Serialization constructor required to preserve exception details when remoting / serialization is used.
-        protected ServiceException(SerializationInfo info, StreamingContext context) : base(info, context) { }
     }
 }

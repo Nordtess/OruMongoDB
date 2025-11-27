@@ -4,6 +4,8 @@ using System.ServiceModel.Syndication;
 using System.Threading.Tasks;
 using System.Xml;
 using OruMongoDB.Core.Helpers;
+using System.Net.Http;
+using System.Net;
 
 /*
  Summary
@@ -29,13 +31,24 @@ namespace OruMongoDB.BusinessLayer.Rss
 
     public class RssParser : IRssParser
     {
+        private static readonly HttpClient _http = new HttpClient();
+
         public async Task<(Poddflöden poddflode, List<PoddAvsnitt> avsnitt)> FetchAndParseAsync(string url)
         {
-            // Create async-capable XML reader for streaming network input.
-            using var reader = XmlReader.Create(url, new XmlReaderSettings { Async = true });
+            using var response = await _http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead);
+            if (response.StatusCode == HttpStatusCode.NotFound)
+            {
+                // Preserve status for PoddService to map to ValidationException
+                throw new HttpRequestException("Feed not found.", null, HttpStatusCode.NotFound);
+            }
+            if (!response.IsSuccessStatusCode)
+            {
+                throw new HttpRequestException($"HTTP error {(int)response.StatusCode} {response.StatusCode}.", null, response.StatusCode);
+            }
 
-            // SyndicationFeed.Load blocks; offload to background thread to keep async flow responsive.
-            var feed = await Task.Run(() => SyndicationFeed.Load(reader));
+            await using var stream = await response.Content.ReadAsStreamAsync();
+            using var reader = XmlReader.Create(stream, new XmlReaderSettings { Async = true });
+            var feed = SyndicationFeed.Load(reader);
 
             var poddflode = new Poddflöden
             {
@@ -44,13 +57,10 @@ namespace OruMongoDB.BusinessLayer.Rss
             };
 
             var avsnittList = new List<PoddAvsnitt>();
-
-            // Map feed items to domain episodes, sanitizing description HTML.
             foreach (var item in feed.Items)
             {
                 var rawDesc = item.Summary?.Text ?? item.Content?.ToString() ?? "No description available.";
                 var cleanDesc = HtmlCleaner.ToPlainText(rawDesc);
-
                 avsnittList.Add(new PoddAvsnitt
                 {
                     title = item.Title?.Text ?? "Unknown episode",

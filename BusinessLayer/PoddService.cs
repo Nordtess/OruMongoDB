@@ -7,6 +7,9 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using System.ComponentModel.DataAnnotations;
+using System.Net;
+using System.Net.Http;
+using System.Xml;
 
 /*
  Summary
@@ -92,8 +95,26 @@ namespace OruMongoDB.BusinessLayer
             {
                 return await _rssParser.FetchAndParseAsync(rssUrl);
             }
+            catch (HttpRequestException httpEx) when (httpEx.StatusCode == HttpStatusCode.NotFound)
+            {
+                // Friendly, non-crashing message for nonexistent feeds
+                throw new ValidationException($"No podcast feed was found at URL: {rssUrl}");
+            }
+            catch (HttpRequestException httpEx)
+            {
+                var status = httpEx.StatusCode.HasValue
+                    ? $"{(int)httpEx.StatusCode.Value} {httpEx.StatusCode.Value}"
+                    : "network error";
+                throw new ValidationException($"Could not access the URL ({status}). Please check the link and try again.");
+            }
+            catch (XmlException)
+            {
+                // Content fetched but not a valid RSS/Atom XML
+                throw new ValidationException($"The content at '{rssUrl}' is not a valid RSS/Atom feed.");
+            }
             catch (Exception ex)
             {
+                // Unknown technical failures still surface as ServiceException
                 throw new ServiceException(
                     $"Could not fetch or parse the podcast feed from URL '{rssUrl}'.",
                     ex);

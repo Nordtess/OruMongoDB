@@ -1,4 +1,5 @@
-﻿using System.Windows.Forms;
+﻿using System.Drawing;
+using System.Windows.Forms;
 
 namespace UI
 {
@@ -46,6 +47,8 @@ namespace UI
         private Label lblRssUrl;
         private Label lblCustomName;
         private PictureBox pictureBox1;
+        private TextBox textBox1;
+        private Label label2; // ensure field exists for runtime/designer
 
         protected override void Dispose(bool disposing)
         {
@@ -61,6 +64,7 @@ namespace UI
             txtCustomName = new TextBox();
             btnSaveFeed = new Button();
             grpMyPodcasts = new GroupBox();
+            lblSelectedFeed = new Label();
             lblCategoryFilter = new Label();
             cmbCategoryFilter = new ComboBox();
             lstPodcasts = new ListBox();
@@ -92,6 +96,9 @@ namespace UI
             cmbCategoryEdit = new ComboBox();
             lblRssUrl = new Label();
             pictureBox1 = new PictureBox();
+            label2 = new Label();
+            textBox1 = new TextBox();
+            label3 = new Label();
             grpMyPodcasts.SuspendLayout();
             grpEpisodes.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)dgvEpisodes).BeginInit();
@@ -120,10 +127,11 @@ namespace UI
             // txtCustomName
             // 
             txtCustomName.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
-            txtCustomName.Location = new Point(10, 315);
+            txtCustomName.Location = new Point(10, 333);
             txtCustomName.Name = "txtCustomName";
             txtCustomName.Size = new Size(235, 23);
             txtCustomName.TabIndex = 4;
+            txtCustomName.TextChanged += txtCustomName_TextChanged;
             // 
             // btnSaveFeed
             // 
@@ -138,6 +146,7 @@ namespace UI
             // grpMyPodcasts
             // 
             grpMyPodcasts.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left;
+            grpMyPodcasts.Controls.Add(lblSelectedFeed);
             grpMyPodcasts.Controls.Add(lblCategoryFilter);
             grpMyPodcasts.Controls.Add(cmbCategoryFilter);
             grpMyPodcasts.Controls.Add(lstPodcasts);
@@ -156,14 +165,25 @@ namespace UI
             grpMyPodcasts.TabStop = false;
             grpMyPodcasts.Text = "My podcasts";
             // 
+            // lblSelectedFeed
+            // 
+            lblSelectedFeed.AutoSize = true;
+            lblSelectedFeed.Location = new Point(10, 289);
+            lblSelectedFeed.Name = "lblSelectedFeed";
+            lblSelectedFeed.Size = new Size(38, 15);
+            lblSelectedFeed.TabIndex = 9;
+            lblSelectedFeed.Text = "label1";
+            lblSelectedFeed.Click += lblSelectedFeed_Click;
+            // 
             // lblCategoryFilter
             // 
             lblCategoryFilter.AutoSize = true;
             lblCategoryFilter.Location = new Point(10, 22);
             lblCategoryFilter.Name = "lblCategoryFilter";
-            lblCategoryFilter.Size = new Size(55, 15);
+            lblCategoryFilter.Size = new Size(93, 15);
             lblCategoryFilter.TabIndex = 0;
-            lblCategoryFilter.Text = "Category";
+            lblCategoryFilter.Text = "Sort by category";
+            lblCategoryFilter.Click += lblCategoryFilter_Click;
             // 
             // cmbCategoryFilter
             // 
@@ -186,7 +206,7 @@ namespace UI
             // lblCustomName
             // 
             lblCustomName.AutoSize = true;
-            lblCustomName.Location = new Point(10, 297);
+            lblCustomName.Location = new Point(10, 315);
             lblCustomName.Name = "lblCustomName";
             lblCustomName.Size = new Size(107, 15);
             lblCustomName.TabIndex = 3;
@@ -196,17 +216,17 @@ namespace UI
             // lblFeedCategory
             // 
             lblFeedCategory.AutoSize = true;
-            lblFeedCategory.Location = new Point(10, 382);
+            lblFeedCategory.Location = new Point(10, 410);
             lblFeedCategory.Name = "lblFeedCategory";
-            lblFeedCategory.Size = new Size(81, 15);
+            lblFeedCategory.Size = new Size(96, 15);
             lblFeedCategory.TabIndex = 3;
-            lblFeedCategory.Text = "Feed category";
+            lblFeedCategory.Text = "Current category";
             lblFeedCategory.Click += lblFeedCategory_Click;
             // 
             // btnRename
             // 
             btnRename.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
-            btnRename.Location = new Point(10, 344);
+            btnRename.Location = new Point(10, 371);
             btnRename.Name = "btnRename";
             btnRename.Size = new Size(110, 25);
             btnRename.TabIndex = 8;
@@ -215,7 +235,7 @@ namespace UI
             // 
             // btnSetCategory
             // 
-            btnSetCategory.Location = new Point(10, 429);
+            btnSetCategory.Location = new Point(10, 469);
             btnSetCategory.Name = "btnSetCategory";
             btnSetCategory.Size = new Size(110, 25);
             btnSetCategory.TabIndex = 5;
@@ -224,7 +244,7 @@ namespace UI
             // 
             // btnRemoveCategory
             // 
-            btnRemoveCategory.Location = new Point(135, 429);
+            btnRemoveCategory.Location = new Point(135, 469);
             btnRemoveCategory.Name = "btnRemoveCategory";
             btnRemoveCategory.Size = new Size(110, 25);
             btnRemoveCategory.TabIndex = 6;
@@ -234,7 +254,7 @@ namespace UI
             // btnDelete
             // 
             btnDelete.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
-            btnDelete.Location = new Point(10, 469);
+            btnDelete.Location = new Point(10, 514);
             btnDelete.Name = "btnDelete";
             btnDelete.Size = new Size(110, 25);
             btnDelete.TabIndex = 7;
@@ -244,7 +264,7 @@ namespace UI
             // cmbFeedCategory
             // 
             cmbFeedCategory.DropDownStyle = ComboBoxStyle.DropDownList;
-            cmbFeedCategory.Location = new Point(10, 400);
+            cmbFeedCategory.Location = new Point(10, 428);
             cmbFeedCategory.Name = "cmbFeedCategory";
             cmbFeedCategory.Size = new Size(235, 23);
             cmbFeedCategory.TabIndex = 4;
@@ -375,7 +395,7 @@ namespace UI
             grpCategories.Size = new Size(360, 598);
             grpCategories.TabIndex = 8;
             grpCategories.TabStop = false;
-            grpCategories.Text = "Categories";
+            grpCategories.Text = "Category manager";
             // 
             // lstCategoriesRight
             // 
@@ -461,19 +481,48 @@ namespace UI
             pictureBox1.BackColor = Color.Transparent;
             pictureBox1.Cursor = Cursors.Hand;
             pictureBox1.Image = Properties.Resources.loggo4;
-            pictureBox1.Location = new Point(553, 1);
+            pictureBox1.Location = new Point(563, 12);
             pictureBox1.Name = "pictureBox1";
-            pictureBox1.Size = new Size(117, 82);
+            pictureBox1.Size = new Size(103, 62);
             pictureBox1.SizeMode = PictureBoxSizeMode.StretchImage;
             pictureBox1.TabIndex = 0;
             pictureBox1.TabStop = false;
             pictureBox1.Click += pictureBox1_Click;
+            // 
+            // label2
+            // 
+            label2.AutoSize = true;
+            label2.Location = new Point(12, 44);
+            label2.Name = "label2";
+            label2.Size = new Size(78, 15);
+            label2.TabIndex = 10;
+            label2.Text = "Fetched feed:";
+            // 
+            // textBox1
+            // 
+            textBox1.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            textBox1.Location = new Point(289, 41);
+            textBox1.Name = "textBox1";
+            textBox1.Size = new Size(235, 23);
+            textBox1.TabIndex = 11;
+            // 
+            // label3
+            // 
+            label3.AutoSize = true;
+            label3.Location = new Point(234, 44);
+            label3.Name = "label3";
+            label3.Size = new Size(38, 15);
+            label3.TabIndex = 12;
+            label3.Text = "label3";
             // 
             // MainUiForm
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(1250, 700);
+            Controls.Add(label3);
+            Controls.Add(textBox1);
+            Controls.Add(label2);
             Controls.Add(pictureBox1);
             Controls.Add(lblRssUrl);
             Controls.Add(txtRssUrl);
@@ -496,5 +545,7 @@ namespace UI
             ResumeLayout(false);
             PerformLayout();
         }
+        private Label lblSelectedFeed;
+        private Label label3;
     }
 }
