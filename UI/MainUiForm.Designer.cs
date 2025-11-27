@@ -127,7 +127,7 @@ namespace UI
             // txtCustomName
             // 
             txtCustomName.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
-            txtCustomName.Location = new Point(10, 315);
+            txtCustomName.Location = new Point(10, 333);
             txtCustomName.Name = "txtCustomName";
             txtCustomName.Size = new Size(235, 23);
             txtCustomName.TabIndex = 4;
@@ -168,7 +168,7 @@ namespace UI
             // lblSelectedFeed
             // 
             lblSelectedFeed.AutoSize = true;
-            lblSelectedFeed.Location = new Point(12, 514);
+            lblSelectedFeed.Location = new Point(10, 289);
             lblSelectedFeed.Name = "lblSelectedFeed";
             lblSelectedFeed.Size = new Size(38, 15);
             lblSelectedFeed.TabIndex = 9;
@@ -206,7 +206,7 @@ namespace UI
             // lblCustomName
             // 
             lblCustomName.AutoSize = true;
-            lblCustomName.Location = new Point(10, 297);
+            lblCustomName.Location = new Point(10, 315);
             lblCustomName.Name = "lblCustomName";
             lblCustomName.Size = new Size(107, 15);
             lblCustomName.TabIndex = 3;
@@ -216,7 +216,7 @@ namespace UI
             // lblFeedCategory
             // 
             lblFeedCategory.AutoSize = true;
-            lblFeedCategory.Location = new Point(10, 382);
+            lblFeedCategory.Location = new Point(10, 410);
             lblFeedCategory.Name = "lblFeedCategory";
             lblFeedCategory.Size = new Size(96, 15);
             lblFeedCategory.TabIndex = 3;
@@ -226,7 +226,7 @@ namespace UI
             // btnRename
             // 
             btnRename.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
-            btnRename.Location = new Point(10, 344);
+            btnRename.Location = new Point(10, 371);
             btnRename.Name = "btnRename";
             btnRename.Size = new Size(110, 25);
             btnRename.TabIndex = 8;
@@ -235,7 +235,7 @@ namespace UI
             // 
             // btnSetCategory
             // 
-            btnSetCategory.Location = new Point(10, 429);
+            btnSetCategory.Location = new Point(10, 469);
             btnSetCategory.Name = "btnSetCategory";
             btnSetCategory.Size = new Size(110, 25);
             btnSetCategory.TabIndex = 5;
@@ -244,7 +244,7 @@ namespace UI
             // 
             // btnRemoveCategory
             // 
-            btnRemoveCategory.Location = new Point(135, 429);
+            btnRemoveCategory.Location = new Point(135, 469);
             btnRemoveCategory.Name = "btnRemoveCategory";
             btnRemoveCategory.Size = new Size(110, 25);
             btnRemoveCategory.TabIndex = 6;
@@ -254,7 +254,7 @@ namespace UI
             // btnDelete
             // 
             btnDelete.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
-            btnDelete.Location = new Point(10, 469);
+            btnDelete.Location = new Point(10, 514);
             btnDelete.Name = "btnDelete";
             btnDelete.Size = new Size(110, 25);
             btnDelete.TabIndex = 7;
@@ -264,7 +264,7 @@ namespace UI
             // cmbFeedCategory
             // 
             cmbFeedCategory.DropDownStyle = ComboBoxStyle.DropDownList;
-            cmbFeedCategory.Location = new Point(10, 400);
+            cmbFeedCategory.Location = new Point(10, 428);
             cmbFeedCategory.Name = "cmbFeedCategory";
             cmbFeedCategory.Size = new Size(235, 23);
             cmbFeedCategory.TabIndex = 4;
@@ -492,7 +492,7 @@ namespace UI
             // label2
             // 
             label2.AutoSize = true;
-            label2.Location = new Point(12, 42);
+            label2.Location = new Point(12, 44);
             label2.Name = "label2";
             label2.Size = new Size(78, 15);
             label2.TabIndex = 10;
@@ -501,7 +501,7 @@ namespace UI
             // textBox1
             // 
             textBox1.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
-            textBox1.Location = new Point(289, 43);
+            textBox1.Location = new Point(289, 41);
             textBox1.Name = "textBox1";
             textBox1.Size = new Size(235, 23);
             textBox1.TabIndex = 11;
@@ -509,7 +509,7 @@ namespace UI
             // label3
             // 
             label3.AutoSize = true;
-            label3.Location = new Point(878, 42);
+            label3.Location = new Point(234, 44);
             label3.Name = "label3";
             label3.Size = new Size(38, 15);
             label3.TabIndex = 12;
