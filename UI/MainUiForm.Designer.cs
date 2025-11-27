@@ -1,4 +1,5 @@
-﻿using System.Windows.Forms;
+﻿using System.Drawing;
+using System.Windows.Forms;
 
 namespace UI
 {
@@ -46,6 +47,8 @@ namespace UI
         private Label lblRssUrl;
         private Label lblCustomName;
         private PictureBox pictureBox1;
+        private TextBox textBox1;
+        private Label label2; // ensure field exists for runtime/designer
 
         protected override void Dispose(bool disposing)
         {
@@ -94,6 +97,7 @@ namespace UI
             lblRssUrl = new Label();
             pictureBox1 = new PictureBox();
             label2 = new Label();
+            textBox1 = new TextBox();
             grpMyPodcasts.SuspendLayout();
             grpEpisodes.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)dgvEpisodes).BeginInit();
@@ -213,7 +217,7 @@ namespace UI
             lblFeedCategory.AutoSize = true;
             lblFeedCategory.Location = new Point(10, 382);
             lblFeedCategory.Name = "lblFeedCategory";
-            lblFeedCategory.Size = new Size(98, 15);
+            lblFeedCategory.Size = new Size(96, 15);
             lblFeedCategory.TabIndex = 3;
             lblFeedCategory.Text = "Current category";
             lblFeedCategory.Click += lblFeedCategory_Click;
@@ -489,16 +493,24 @@ namespace UI
             label2.AutoSize = true;
             label2.Location = new Point(12, 42);
             label2.Name = "label2";
-            label2.Size = new Size(38, 15);
+            label2.Size = new Size(78, 15);
             label2.TabIndex = 10;
-            label2.Text = "";
-            label2.Visible = false;
+            label2.Text = "Fetched feed:";
+            // 
+            // textBox1
+            // 
+            textBox1.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            textBox1.Location = new Point(289, 43);
+            textBox1.Name = "textBox1";
+            textBox1.Size = new Size(235, 23);
+            textBox1.TabIndex = 11;
             // 
             // MainUiForm
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(1250, 700);
+            Controls.Add(textBox1);
             Controls.Add(label2);
             Controls.Add(pictureBox1);
             Controls.Add(lblRssUrl);
@@ -523,6 +535,5 @@ namespace UI
             PerformLayout();
         }
         private Label lblSelectedFeed;
-        private Label label2;
     }
 }

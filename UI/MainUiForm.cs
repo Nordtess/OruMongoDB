@@ -163,10 +163,24 @@ namespace UI
             try
             {
                 PoddValidator.EnsureFeedSelected(_currentFlode!);
-                PoddValidator.EnsureFeedNotAlreadySaved(_currentFlode!);
                 PoddValidator.EnsureEpisodesExist(_currentEpisodes);
-                var customName = txtCustomName.Text.Trim();
-                PoddValidator.ValidateFeedName(customName);
+
+                // Determine custom name based on saved/unsaved state and inputs
+                string customName;
+                if (_currentFlode!.IsSaved)
+                {
+                    // Saved feeds: only `txtCustomName` can rename; enforce validation
+                    customName = txtCustomName.Text.Trim();
+                    PoddValidator.ValidateFeedName(customName);
+                }
+                else
+                {
+                    // Unsaved feeds: allow `textBox1` to set initial custom name; fallback to fetched displayName
+                    var unsavedName = textBox1.Text.Trim();
+                    customName = string.IsNullOrWhiteSpace(unsavedName) ? _currentFlode.displayName : unsavedName;
+                    PoddValidator.ValidateFeedName(customName);
+                }
+
                 _currentFlode!.displayName = customName;
                 foreach (var ep in _currentEpisodes)
                 {
@@ -403,6 +417,11 @@ namespace UI
             {
                 if (lstPodcasts.SelectedItem is not Poddflöden selected)
                     throw new ValidationException("Select a feed first.");
+
+                // Enforce: rename only for saved feeds
+                if (!_currentFlode?.IsSaved ?? false)
+                    throw new ValidationException("You can only rename feeds that are saved.");
+
                 var newName = txtCustomName.Text.Trim();
                 PoddValidator.EnsureFeedRenameValid(selected, newName);
                 await _poddService.RenameFeedAsync(selected.Id!, newName);
@@ -569,8 +588,8 @@ namespace UI
             UiHelpers.ApplyTheme(
             this,
             new[] { grpMyPodcasts, grpEpisodes, grpCategories },
-            new[] { lblRssUrl, lblCategoryFilter, lblCustomName, lblFeedCategory, lblNewCategory, lblCategoryEdit, lblNewCategoryName, lblSelectedFeed },
-            new[] { txtRssUrl, txtCustomName, txtNewCategoryName, txtEditCategoryName, txtDescription },
+            new[] { lblRssUrl, lblCategoryFilter, lblCustomName, lblFeedCategory, lblNewCategory, lblCategoryEdit, lblNewCategoryName, lblSelectedFeed, label2 },
+            new[] { txtRssUrl, txtCustomName, txtNewCategoryName, txtEditCategoryName, txtDescription, textBox1 },
             new[] { lstPodcasts, lstCategoriesRight },
             new[] { cmbCategoryFilter, cmbFeedCategory, cmbCategoryEdit },
             new[] { btnFetch, btnSaveFeed, btnOpenExternalLink, btnSetCategory, btnRemoveCategory, btnDelete, btnRename, btnCreateCategory, btnRenameCategory, btnDeleteCategory },
