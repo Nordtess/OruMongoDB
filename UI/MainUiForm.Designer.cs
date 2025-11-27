@@ -125,6 +125,7 @@ namespace UI
             txtCustomName.Name = "txtCustomName";
             txtCustomName.Size = new Size(235, 23);
             txtCustomName.TabIndex = 4;
+            txtCustomName.TextChanged += txtCustomName_TextChanged;
             // 
             // btnSaveFeed
             // 

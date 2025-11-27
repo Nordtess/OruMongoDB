@@ -34,6 +34,8 @@ namespace UI
         public MainUiForm()
         {
             InitializeComponent();
+            // Show hint text in rename field; user types new name without erasing current name
+            txtCustomName.PlaceholderText = "Enter new name";
             ApplyTheme();
             _poddService = ServiceFactory.CreatePoddService();
             _categoryService = ServiceFactory.CreateCategoryService();
@@ -89,7 +91,7 @@ namespace UI
                     _currentFlode = dbResult.poddflode;
                     _currentEpisodes = dbResult.avsnitt ?? new List<PoddAvsnitt>();
                     _currentFlode.IsSaved = true;
-                    txtCustomName.Text = _currentFlode.displayName;
+                    // Do not prefill rename textbox with current display name; we now use placeholder
                     SyncFeedCategoryFromFeed(_currentFlode);
                     FillEpisodesGrid(_currentEpisodes);
                     UpdateSelectedFeedLabel();
@@ -107,7 +109,7 @@ namespace UI
                 _currentFlode = netResult.poddflode;
                 _currentEpisodes = netResult.avsnitt ?? new List<PoddAvsnitt>();
                 _currentFlode.IsSaved = false;
-                txtCustomName.Text = _currentFlode.displayName;
+                // Do not prefill rename textbox with current display name; we now use placeholder
                 if (cmbFeedCategory.Items.Count > 0) cmbFeedCategory.SelectedIndex = 0;
                 FillEpisodesGrid(_currentEpisodes);
                 UpdateSelectedFeedLabel();
@@ -239,7 +241,7 @@ namespace UI
             }
             _currentFlode = selected;
             _currentFlode.IsSaved = true; // Selecting from saved list implies persisted feed
-            txtCustomName.Text = selected.displayName;
+            // Do not prefill rename textbox with current display name; we now use placeholder
             txtRssUrl.Text = selected.rssUrl;
             SyncFeedCategoryFromFeed(selected);
             UpdateSelectedFeedLabel();
@@ -585,6 +587,11 @@ namespace UI
             }
 
             lblSelectedFeed.Text = text;
+        }
+
+        private void txtCustomName_TextChanged(object sender, EventArgs e)
+        {
+            // Intentionally left blank. Rename textbox now uses placeholder; we avoid mirroring selected name here.
         }
     }
 }
