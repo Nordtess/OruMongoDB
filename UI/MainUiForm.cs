@@ -9,15 +9,6 @@ using OruMongoDB.BusinessLayer;
 using OruMongoDB.Domain;
 using OruMongoDB.Core.Helpers;
 
-/*
- Summary:
- Main Windows Forms UI for managing podcast subscriptions and categories.
- Interacts with the BusinessLayer services that use MongoDB Driver against MongoDB Atlas
- for persistent storage. All long-running operations are async to keep the UI responsive,
- and exceptions are handled to avoid crashes. Users can fetch feeds, save them with
- episodes, assign/remove categories, and manage categories.
-*/
-
 namespace UI
 {
     public partial class MainUiForm : Form
@@ -59,6 +50,42 @@ namespace UI
             }
         }
 
+        // Open episode external link in the system default browser
+        private void btnOpenExternalLink_Click(object? sender, EventArgs e)
+        {
+            if (!TryGetSelectedEpisode(out var ep)) return;
+            if (string.IsNullOrWhiteSpace(ep.link))
+            {
+                MessageBox.Show("Episode has no link.", "Info",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+            try
+            {
+                Process.Start(new ProcessStartInfo { FileName = ep.link, UseShellExecute = true });
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Could not open link: " + ex.Message, "Technical error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        // Helper: update the temporary fetched feed label (label2)
+        private void UpdateFetchedFeedLabel()
+        {
+            if (_currentFlode != null && !_currentFlode.IsSaved && !string.IsNullOrWhiteSpace(_currentFlode.displayName))
+            {
+                label2.Text = $"Fetched feed: {_currentFlode.displayName}";
+                label2.Visible = true;
+            }
+            else
+            {
+                label2.Visible = false;
+                label2.Text = string.Empty;
+            }
+        }
+
         // Fetch a feed either from database cache or from the internet
         private async void btnFetch_Click(object? sender, EventArgs e)
         {
@@ -84,6 +111,7 @@ namespace UI
                 lblEpisodeCount.Text = "Episodes:0";
                 txtDescription.Clear();
                 UpdateSelectedFeedLabel();
+                UpdateFetchedFeedLabel();
                 try
                 {
                     // Try read-through cache from DB first (fast path)
@@ -91,10 +119,10 @@ namespace UI
                     _currentFlode = dbResult.poddflode;
                     _currentEpisodes = dbResult.avsnitt ?? new List<PoddAvsnitt>();
                     _currentFlode.IsSaved = true;
-                    // Do not prefill rename textbox with current display name; we now use placeholder
                     SyncFeedCategoryFromFeed(_currentFlode);
                     FillEpisodesGrid(_currentEpisodes);
                     UpdateSelectedFeedLabel();
+                    UpdateFetchedFeedLabel();
                     MessageBox.Show(
                         $"Loaded {_currentEpisodes.Count} episodes for '{_currentFlode.displayName}'.",
                         "Loaded", MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -109,10 +137,10 @@ namespace UI
                 _currentFlode = netResult.poddflode;
                 _currentEpisodes = netResult.avsnitt ?? new List<PoddAvsnitt>();
                 _currentFlode.IsSaved = false;
-                // Do not prefill rename textbox with current display name; we now use placeholder
-                if (cmbFeedCategory.Items.Count > 0) cmbFeedCategory.SelectedIndex = 0;
+                if (cmbFeedCategory.Items.Count >0) cmbFeedCategory.SelectedIndex =0;
                 FillEpisodesGrid(_currentEpisodes);
                 UpdateSelectedFeedLabel();
+                UpdateFetchedFeedLabel();
                 MessageBox.Show(
                     $"Loaded {_currentEpisodes.Count} episodes for '{_currentFlode.displayName}'.",
                     "Loaded", MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -149,6 +177,7 @@ namespace UI
                 _currentFlode.IsSaved = true;
                 _currentFlode.SavedAt = DateTime.UtcNow;
                 UpdateSelectedFeedLabel();
+                UpdateFetchedFeedLabel();
                 MessageBox.Show("Feed and episodes saved.", "Done",
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
                 await LoadSavedFeedsAsync();
@@ -237,14 +266,15 @@ namespace UI
             if (lstPodcasts.SelectedItem is not Poddflöden selected || string.IsNullOrWhiteSpace(selected.rssUrl))
             {
                 UpdateSelectedFeedLabel();
+                UpdateFetchedFeedLabel();
                 return;
             }
             _currentFlode = selected;
             _currentFlode.IsSaved = true; // Selecting from saved list implies persisted feed
-            // Do not prefill rename textbox with current display name; we now use placeholder
             txtRssUrl.Text = selected.rssUrl;
             SyncFeedCategoryFromFeed(selected);
             UpdateSelectedFeedLabel();
+            UpdateFetchedFeedLabel();
             try
             {
                 var result = await _poddService.FetchFromDatabaseAsync(selected.rssUrl);
@@ -355,6 +385,7 @@ namespace UI
                     txtDescription.Clear();
                 }
                 UpdateSelectedFeedLabel();
+                UpdateFetchedFeedLabel();
                 MessageBox.Show("Feed removed.", "Done",
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
@@ -380,6 +411,7 @@ namespace UI
                 lstPodcasts.DisplayMember = "";
                 lstPodcasts.DisplayMember = "displayName";
                 UpdateSelectedFeedLabel();
+                UpdateFetchedFeedLabel();
                 MessageBox.Show("Feed renamed.", "Done",
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
@@ -525,27 +557,6 @@ namespace UI
             txtDescription.Text = $"Title: {ep.title}\r\nPublished: {ep.publishDate}\r\n\r\n{cleanDesc}";
         }
 
-        // Open episode external link in the system default browser
-        private void btnOpenExternalLink_Click(object? sender, EventArgs e)
-        {
-            if (!TryGetSelectedEpisode(out var ep)) return;
-            if (string.IsNullOrWhiteSpace(ep.link))
-            {
-                MessageBox.Show("Episode has no link.", "Info",
-                    MessageBoxButtons.OK, MessageBoxIcon.Information);
-                return;
-            }
-            try
-            {
-                Process.Start(new ProcessStartInfo { FileName = ep.link, UseShellExecute = true });
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show("Could not open link: " + ex.Message, "Technical error",
-                    MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-        }
-
         // Theme helper encapsulation to keep this form lean
         private void lblFeedCategory_Click(object sender, EventArgs e) { }
         private void lblCustomName_Click(object sender, EventArgs e) { }
@@ -591,7 +602,7 @@ namespace UI
 
         private void txtCustomName_TextChanged(object sender, EventArgs e)
         {
-            
+
         }
 
         private void lblCategoryFilter_Click(object sender, EventArgs e)

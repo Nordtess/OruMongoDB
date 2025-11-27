@@ -93,6 +93,7 @@ namespace UI
             cmbCategoryEdit = new ComboBox();
             lblRssUrl = new Label();
             pictureBox1 = new PictureBox();
+            label2 = new Label();
             grpMyPodcasts.SuspendLayout();
             grpEpisodes.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)dgvEpisodes).BeginInit();
@@ -174,9 +175,10 @@ namespace UI
             lblCategoryFilter.AutoSize = true;
             lblCategoryFilter.Location = new Point(10, 22);
             lblCategoryFilter.Name = "lblCategoryFilter";
-            lblCategoryFilter.Size = new Size(94, 15);
+            lblCategoryFilter.Size = new Size(93, 15);
             lblCategoryFilter.TabIndex = 0;
-            lblCategoryFilter.Text = "Sort by category"; // Updated text
+            lblCategoryFilter.Text = "Sort by category";
+            lblCategoryFilter.Click += lblCategoryFilter_Click;
             // 
             // cmbCategoryFilter
             // 
@@ -211,9 +213,9 @@ namespace UI
             lblFeedCategory.AutoSize = true;
             lblFeedCategory.Location = new Point(10, 382);
             lblFeedCategory.Name = "lblFeedCategory";
-            lblFeedCategory.Size = new Size(81, 15);
+            lblFeedCategory.Size = new Size(98, 15);
             lblFeedCategory.TabIndex = 3;
-            lblFeedCategory.Text = "Feed category";
+            lblFeedCategory.Text = "Current category";
             lblFeedCategory.Click += lblFeedCategory_Click;
             // 
             // btnRename
@@ -388,7 +390,7 @@ namespace UI
             grpCategories.Size = new Size(360, 598);
             grpCategories.TabIndex = 8;
             grpCategories.TabStop = false;
-            grpCategories.Text = "Categories";
+            grpCategories.Text = "Category manager";
             // 
             // lstCategoriesRight
             // 
@@ -482,11 +484,22 @@ namespace UI
             pictureBox1.TabStop = false;
             pictureBox1.Click += pictureBox1_Click;
             // 
+            // label2
+            // 
+            label2.AutoSize = true;
+            label2.Location = new Point(12, 42);
+            label2.Name = "label2";
+            label2.Size = new Size(38, 15);
+            label2.TabIndex = 10;
+            label2.Text = "";
+            label2.Visible = false;
+            // 
             // MainUiForm
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(1250, 700);
+            Controls.Add(label2);
             Controls.Add(pictureBox1);
             Controls.Add(lblRssUrl);
             Controls.Add(txtRssUrl);
@@ -510,5 +523,6 @@ namespace UI
             PerformLayout();
         }
         private Label lblSelectedFeed;
+        private Label label2;
     }
 }
