@@ -594,6 +594,27 @@ namespace UI
             txtDescription.Text = $"Title: {ep.title}\r\nPublished: {ep.publishDate}\r\n\r\n{cleanDesc}";
         }
 
+        // Dubbelclick shows a popup in episode description
+        private void dgvEpisodes_CellDoubleClick(object? sender, DataGridViewCellEventArgs e)
+        {
+            if (!TryGetSelectedEpisode(out var ep))
+                return;
+
+            var cleanDesc = HtmlCleaner.ToPlainText(ep.description);
+
+            var text =
+             
+                $"{cleanDesc}";
+
+            MessageBox.Show(
+                text,
+                "Episode details",
+                MessageBoxButtons.OKCancel,
+                MessageBoxIcon.None);
+
+        }
+
+
         // Theme helper encapsulation to keep this form lean
         private void lblFeedCategory_Click(object sender, EventArgs e) { }
         private void lblCustomName_Click(object sender, EventArgs e) { }

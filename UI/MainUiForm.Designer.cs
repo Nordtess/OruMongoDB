@@ -104,6 +104,7 @@ namespace UI
             ((System.ComponentModel.ISupportInitialize)dgvEpisodes).BeginInit();
             grpCategories.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)pictureBox1).BeginInit();
+
             SuspendLayout();
             // 
             // txtRssUrl
@@ -542,6 +543,7 @@ namespace UI
             grpCategories.ResumeLayout(false);
             grpCategories.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)pictureBox1).EndInit();
+            this.dgvEpisodes.CellDoubleClick += new System.Windows.Forms.DataGridViewCellEventHandler(this.dgvEpisodes_CellDoubleClick);
             ResumeLayout(false);
             PerformLayout();
         }
