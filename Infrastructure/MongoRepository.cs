@@ -1,4 +1,5 @@
-﻿using MongoDB.Bson;
+﻿using System;
+using MongoDB.Bson;
 using MongoDB.Driver;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -23,20 +24,22 @@ namespace OruMongoDB.Infrastructure
         /// </summary>
         public MongoRepository(IMongoDatabase database, string collectionName)
         {
+            if (database is null) throw new ArgumentNullException(nameof(database));
+            if (string.IsNullOrWhiteSpace(collectionName)) throw new ArgumentException("Collection name is required.", nameof(collectionName));
             _collection = database.GetCollection<TEntity>(collectionName);
         }
 
         // Reads
-        public Task<TEntity> GetByIdAsync(string id)
+        public async Task<TEntity> GetByIdAsync(string id)
         {
             var filter = Builders<TEntity>.Filter.Eq("_id", ObjectId.Parse(id));
-            return _collection.Find(filter).FirstOrDefaultAsync();
+            return await _collection.Find(filter).FirstOrDefaultAsync();
         }
 
         public async Task<IEnumerable<TEntity>> GetAllAsync()
         {
             // Find all documents; ToListAsync returns List<TEntity> which is IEnumerable<TEntity>.
-            return await _collection.Find(_ => true).ToListAsync();
+            return await _collection.Find(Builders<TEntity>.Filter.Empty).ToListAsync();
         }
 
         // Creates
