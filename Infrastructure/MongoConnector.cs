@@ -36,7 +36,7 @@ namespace OruMongoDB.Infrastructure
 
             var databaseName =
                 Environment.GetEnvironmentVariable("MONGODB_DB") ??
-                "G20";
+                "opponering";
 
             _client = new MongoClient(connectionString);
             _database = _client.GetDatabase(databaseName);

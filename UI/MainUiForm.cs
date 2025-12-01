@@ -84,7 +84,7 @@ namespace UI
             }
         }
 
-        // Helper: update the temporary fetched feed label (label2)
+        
         private void UpdateFetchedFeedLabel()
         {
             if (_currentFlode != null && !_currentFlode.IsSaved && !string.IsNullOrWhiteSpace(_currentFlode.displayName))
@@ -223,7 +223,7 @@ namespace UI
             }
         }
 
-        // Load all categories from database and refresh related UI controls
+        
         private async Task LoadCategoriesAsync()
         {
             _allCategories = (await _categoryService.GetAllCategoriesAsync()).ToList();
@@ -277,7 +277,7 @@ namespace UI
 
         private void cmbCategoryFilter_SelectedIndexChanged(object? sender, EventArgs e) => ApplyCategoryFilter();
 
-        // Keep feed category combo in sync with the current feed
+        
         private void SyncFeedCategoryFromFeed(Poddflöden feed)
         {
             if (string.IsNullOrEmpty(feed.categoryId))
@@ -299,7 +299,7 @@ namespace UI
                 return;
             }
             _currentFlode = selected;
-            _currentFlode.IsSaved = true; // Selecting from saved list implies persisted feed
+            _currentFlode.IsSaved = true;
             txtRssUrl.Text = selected.rssUrl;
             SyncFeedCategoryFromFeed(selected);
             UpdateSelectedFeedLabel();
@@ -573,7 +573,7 @@ namespace UI
 
         private void dgvEpisodes_SelectionChanged(object? sender, EventArgs e) => UpdateEpisodeDetailsFromGrid();
 
-        // Get the currently selected episode (if any) by matching grid row index to backing list
+        
         private bool TryGetSelectedEpisode(out PoddAvsnitt ep)
         {
             ep = null!;
@@ -594,7 +594,7 @@ namespace UI
             txtDescription.Text = $"Title: {ep.title}\r\nPublished: {ep.publishDate}\r\n\r\n{cleanDesc}";
         }
 
-        // Theme helper encapsulation to keep this form lean
+        
         private void lblFeedCategory_Click(object sender, EventArgs e) { }
         private void lblCustomName_Click(object sender, EventArgs e) { }
         private void pictureBox1_Click(object sender, EventArgs e) { }
@@ -606,7 +606,6 @@ namespace UI
             UiHelpers.ApplyTheme(
             this,
             new[] { grpMyPodcasts, grpEpisodes, grpCategories },
-            // Include label3 so it picks the same bright white style
             new[] { lblRssUrl, lblCategoryFilter, lblCustomName, lblFeedCategory, lblNewCategory, lblCategoryEdit, lblNewCategoryName, lblSelectedFeed, label2, label3 },
             new[] { txtRssUrl, txtCustomName, txtNewCategoryName, txtEditCategoryName, txtDescription, textBox1 },
             new[] { lstPodcasts, lstCategoriesRight },
@@ -616,7 +615,7 @@ namespace UI
             pictureBox1);
         }
 
-        // Clears text inputs when they lose focus unless moving to an action button
+        
         private void ClearTextBoxOnLeave(object? sender, EventArgs e)
         {
             if (sender is not TextBox tb) return;
@@ -627,10 +626,10 @@ namespace UI
 
         private void lblSelectedFeed_Click(object sender, EventArgs e)
         {
-            // No-op: label reflects selection automatically via UpdateSelectedFeedLabel()
+            
         }
 
-        // Updates the Selected Feed label to reflect current saved selection
+       
         private void UpdateSelectedFeedLabel()
         {
             string text;
