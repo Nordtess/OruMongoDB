@@ -20,13 +20,6 @@ using System.Xml;
  - Saves a feed with all its episodes atomically (ACID transaction).
  - Renames feeds and assigns/removes categories using transactions.
  - Deletes feeds and their episodes in a single transaction.
-
- Design / Requirements Alignment
- - Uses custom interfaces (IPoddService, IRssParser, IPoddflodeRepository, IPoddAvsnittRepository).
- - All public methods are asynchronous to avoid blocking UI/network operations.
- - MongoDB .NET driver is used directly; transactions wrap insert/update/delete.
- - Validation throws ValidationException (for user/data issues) and ServiceException (for technical issues).
- - Exceptions are caught and rethrown with context so the application can handle them gracefully.
 */
 
 namespace OruMongoDB.BusinessLayer
@@ -48,7 +41,7 @@ namespace OruMongoDB.BusinessLayer
         private readonly IPoddflodeRepository _poddRepo;
         private readonly IPoddAvsnittRepository _avsnittRepo;
         private readonly IRssParser _rssParser;
-        private readonly IMongoClient _client;
+        private readonly MongoConnector _connector;
 
         public PoddService(
             IPoddflodeRepository poddRepo,
@@ -59,12 +52,7 @@ namespace OruMongoDB.BusinessLayer
             _poddRepo = poddRepo ?? throw new ArgumentNullException(nameof(poddRepo));
             _avsnittRepo = avsnittRepo ?? throw new ArgumentNullException(nameof(avsnittRepo));
             _rssParser = rssParser ?? throw new ArgumentNullException(nameof(rssParser));
-
-            if (connector == null)
-                throw new ArgumentNullException(nameof(connector));
-
-            _client = connector.GetClient()
-                      ?? throw new ServiceException("Could not obtain MongoDB client instance.");
+            _connector = connector ?? throw new ArgumentNullException(nameof(connector));
         }
 
         // URL validation centralizes format checks before DB or network operations.
@@ -84,7 +72,7 @@ namespace OruMongoDB.BusinessLayer
         {
             if (string.IsNullOrWhiteSpace(name))
                 throw new ValidationException("Feed name cannot be empty.");
-            if (name.Length >200)
+            if (name.Length > 200)
                 throw new ValidationException("Feed name is too long (max200 characters).");
         }
 
@@ -140,7 +128,7 @@ namespace OruMongoDB.BusinessLayer
 
             ValidateRssUrlInternal(poddflode.rssUrl);
             ValidateFeedNameInternal(poddflode.displayName);
-            if (avsnittList.Count ==0) throw new ValidationException("There are no episodes to operate on.");
+            if (avsnittList.Count == 0) throw new ValidationException("There are no episodes to operate on.");
 
             // Prevent duplicate subscription by RSS URL.
             var existingPodd = await _poddRepo.GetByUrlAsync(poddflode.rssUrl);
@@ -148,32 +136,28 @@ namespace OruMongoDB.BusinessLayer
                 throw new ServiceException(
                     $"The feed with URL '{poddflode.rssUrl}' is already saved in the database.");
 
-            using var session = await _client.StartSessionAsync();
-            session.StartTransaction();
-
             try
             {
-                // Mark as saved BEFORE insert so persisted document contains correct values.
-                poddflode.IsSaved = true;
-                poddflode.SavedAt = DateTime.UtcNow;
+                await _connector.RunTransactionAsync(async session =>
+                {
+                    // Mark as saved BEFORE insert so persisted document contains correct values.
+                    poddflode.IsSaved = true;
+                    poddflode.SavedAt = DateTime.UtcNow;
 
-                //1) Insert the feed.
-                await _poddRepo.AddAsync(session, poddflode);
+                    //1) Insert the feed.
+                    await _poddRepo.AddAsync(session, poddflode);
 
-                //2) Ensure all episodes reference the new feed id.
-                var newFeedId = poddflode.Id;
-                foreach (var ep in avsnittList)
-                    ep.feedId = newFeedId!;
+                    //2) Ensure all episodes reference the new feed id.
+                    var newFeedId = poddflode.Id;
+                    foreach (var ep in avsnittList)
+                        ep.feedId = newFeedId!;
 
-                //3) Insert all episodes (already validated count >0).
-                await _avsnittRepo.AddRangeAsync(session, avsnittList);
-
-                //4) Commit.
-                await session.CommitTransactionAsync();
+                    //3) Insert all episodes (already validated count >0).
+                    await _avsnittRepo.AddRangeAsync(session, avsnittList);
+                });
             }
             catch (Exception ex)
             {
-                await session.AbortTransactionAsync();
                 throw new ServiceException(
                     "Could not save the podcast feed and its episodes in a single transaction. All changes were rolled back.",
                     ex);
@@ -191,23 +175,20 @@ namespace OruMongoDB.BusinessLayer
         {
             ValidateRssUrlInternal(rssUrl);
 
-            using var session = await _client.StartSessionAsync();
-            session.StartTransaction();
-
             try
             {
-                var feed = await _poddRepo.GetByUrlAsync(session, rssUrl);
-                if (feed == null)
-                    throw new ValidationException($"No podcast feed found with RSS URL: {rssUrl}");
+                await _connector.RunTransactionAsync(async session =>
+                {
+                    var feed = await _poddRepo.GetByUrlAsync(session, rssUrl);
+                    if (feed == null)
+                        throw new ValidationException($"No podcast feed found with RSS URL: {rssUrl}");
 
-                await _avsnittRepo.DeleteByFeedIdAsync(session, feed.Id!);
-                await _poddRepo.DeleteByIdAsync(session, feed.Id!);
-
-                await session.CommitTransactionAsync();
+                    await _avsnittRepo.DeleteByFeedIdAsync(session, feed.Id!);
+                    await _poddRepo.DeleteByIdAsync(session, feed.Id!);
+                });
             }
             catch (Exception ex)
             {
-                await session.AbortTransactionAsync();
                 if (ex is ValidationException) throw;
                 throw new ServiceException(
                     "Could not delete feed and episodes in a transaction.",
@@ -229,18 +210,16 @@ namespace OruMongoDB.BusinessLayer
             if (string.Equals(existing.displayName, newName, StringComparison.Ordinal))
                 throw new ValidationException("The new feed name is the same as the current name.");
 
-            using var session = await _client.StartSessionAsync();
-            session.StartTransaction();
-
             try
             {
-                existing.displayName = newName.Trim();
-                await _poddRepo.UpdateAsync(session, id, existing);
-                await session.CommitTransactionAsync();
+                await _connector.RunTransactionAsync(async session =>
+                {
+                    existing.displayName = newName.Trim();
+                    await _poddRepo.UpdateAsync(session, id, existing);
+                });
             }
             catch (Exception ex)
             {
-                await session.AbortTransactionAsync();
                 if (ex is ValidationException) throw;
                 throw new ServiceException(
                     "Could not rename feed in a transaction.",
@@ -259,17 +238,15 @@ namespace OruMongoDB.BusinessLayer
             if (existing == null || !existing.IsSaved)
                 throw new ValidationException("Feed must be saved before assigning category.");
 
-            using var session = await _client.StartSessionAsync();
-            session.StartTransaction();
-
             try
             {
-                await _poddRepo.UpdateCategoryAsync(session, poddId, categoryId);
-                await session.CommitTransactionAsync();
+                await _connector.RunTransactionAsync(async session =>
+                {
+                    await _poddRepo.UpdateCategoryAsync(session, poddId, categoryId);
+                });
             }
             catch (Exception ex)
             {
-                await session.AbortTransactionAsync();
                 throw new ServiceException(
                     "Could not assign category to the selected feed.",
                     ex);
@@ -285,18 +262,16 @@ namespace OruMongoDB.BusinessLayer
             if (existing == null || !existing.IsSaved)
                 throw new ValidationException("Feed must be saved before removing category.");
 
-            using var session = await _client.StartSessionAsync();
-            session.StartTransaction();
-
             try
             {
-                // Empty string signals "no category".
-                await _poddRepo.UpdateCategoryAsync(session, poddId, string.Empty);
-                await session.CommitTransactionAsync();
+                await _connector.RunTransactionAsync(async session =>
+                {
+                    // Empty string signals "no category".
+                    await _poddRepo.UpdateCategoryAsync(session, poddId, string.Empty);
+                });
             }
             catch (Exception ex)
             {
-                await session.AbortTransactionAsync();
                 throw new ServiceException(
                     "Could not remove category from the selected feed.",
                     ex);

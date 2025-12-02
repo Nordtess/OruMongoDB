@@ -6,14 +6,14 @@ namespace OruMongoDB.UI
 {
     internal static class Program
     {
-        
+
         [STAThread]
         static void Main()
         {
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
 
-           Application.Run(new MainUiForm());
+            Application.Run(new MainUiForm());
 
         }
     }

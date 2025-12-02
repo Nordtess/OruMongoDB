@@ -17,24 +17,7 @@ namespace OruMongoDB.Infrastructure
     {
         public CategoryRepository(IMongoDatabase database) : base(database, "Kategorier") { }
 
-        // Non-transactional operations (driver handles async I/O)
-        public Task InsertAsync(Kategori category) =>
-            _collection.InsertOneAsync(category);
-
-        public Task UpdateCategoryNameAsync(string categoryId, string newName)
-        {
-            var filter = Builders<Kategori>.Filter.Eq(c => c.Id, categoryId);
-            var update = Builders<Kategori>.Update.Set(c => c.Namn, newName);
-            return _collection.UpdateOneAsync(filter, update);
-        }
-
-        public Task DeleteCategoryAsync(string categoryId)
-        {
-            var filter = Builders<Kategori>.Filter.Eq(c => c.Id, categoryId);
-            return _collection.DeleteOneAsync(filter);
-        }
-
-        // Transaction-aware overloads (to be called within an active session)
+        // Transaction-aware writes (session required)
         public Task InsertAsync(IClientSessionHandle session, Kategori category) =>
             _collection.InsertOneAsync(session, category);
 

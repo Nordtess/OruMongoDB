@@ -10,16 +10,12 @@ using System.Net;
 /*
  Summary
  -------
- Provides the RSS parsing abstraction (IRssParser) and implementation (RssParser).
+ Provides the RSS/Atom parsing abstraction (IRssParser) and implementation (RssParser).
  RssParser:
- - Asynchronously loads an RSS/Atom feed from a URL.
+ - Asynchronously loads an RSS or Atom feed from a URL.
  - Projects feed metadata to Poddflöden and items to PoddAvsnitt.
+ - Safely extracts text/HTML from TextSyndicationContent (avoids showing type names).
  - Strips HTML markup from episode descriptions via HtmlCleaner.
- Design notes:
- - Custom interface enables testability.
- - XmlReader created with Async=true; SyndicationFeed.Load is synchronous so it is executed inside Task.Run to avoid blocking the caller.
- - No persistence or transactions here; higher layers handle MongoDB Atlas storage and ACID transactions.
- - Exceptions bubble up for caller handling (UI/service layer) to maintain resilience.
 */
 
 namespace OruMongoDB.BusinessLayer.Rss
@@ -59,7 +55,8 @@ namespace OruMongoDB.BusinessLayer.Rss
             var avsnittList = new List<PoddAvsnitt>();
             foreach (var item in feed.Items)
             {
-                var rawDesc = item.Summary?.Text ?? item.Content?.ToString() ?? "No description available.";
+                // Prefer Summary text; fall back to Content if Summary empty.
+                string rawDesc = ExtractText(item) ?? "No description available.";
                 var cleanDesc = HtmlCleaner.ToPlainText(rawDesc);
                 avsnittList.Add(new PoddAvsnitt
                 {
@@ -71,6 +68,36 @@ namespace OruMongoDB.BusinessLayer.Rss
             }
 
             return (poddflode, avsnittList);
+        }
+
+        private static string? ExtractText(SyndicationItem item)
+        {
+            // TextSyndicationContent covers Atom/RSS content types.
+            if (item.Summary is TextSyndicationContent summaryContent)
+            {
+                var text = summaryContent.Text;
+                if (!string.IsNullOrWhiteSpace(text)) return text;
+            }
+
+            if (item.Content is TextSyndicationContent contentText)
+            {
+                var text = contentText.Text;
+                if (!string.IsNullOrWhiteSpace(text)) return text;
+            }
+
+            // Some Atom feeds store content in ElementExtensions.
+            foreach (var ext in item.ElementExtensions)
+            {
+                try
+                {
+                    var val = ext.GetObject<System.Xml.XmlElement>()?.InnerText;
+                    if (!string.IsNullOrWhiteSpace(val)) return val;
+                }
+                catch { /* ignore malformed extension */ }
+            }
+
+            // Fallback: attempt Summary?.Text or Content?.ToString() (avoid showing the type name when empty)
+            return item.Summary?.Text ?? (item.Content as TextSyndicationContent)?.Text;
         }
     }
 }
