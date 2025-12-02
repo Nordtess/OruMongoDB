@@ -104,7 +104,6 @@ namespace UI
             ((System.ComponentModel.ISupportInitialize)dgvEpisodes).BeginInit();
             grpCategories.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)pictureBox1).BeginInit();
-
             SuspendLayout();
             // 
             // txtRssUrl
@@ -114,6 +113,7 @@ namespace UI
             txtRssUrl.Name = "txtRssUrl";
             txtRssUrl.Size = new Size(262, 23);
             txtRssUrl.TabIndex = 1;
+            txtRssUrl.TextChanged += txtRssUrl_TextChanged;
             // 
             // btnFetch
             // 

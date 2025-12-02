@@ -84,7 +84,7 @@ namespace UI
             }
         }
 
-        
+
         private void UpdateFetchedFeedLabel()
         {
             if (_currentFlode != null && !_currentFlode.IsSaved && !string.IsNullOrWhiteSpace(_currentFlode.displayName))
@@ -150,7 +150,7 @@ namespace UI
                 _currentFlode = netResult.poddflode;
                 _currentEpisodes = netResult.avsnitt ?? new List<PoddAvsnitt>();
                 _currentFlode.IsSaved = false;
-                if (cmbFeedCategory.Items.Count >0) cmbFeedCategory.SelectedIndex =0;
+                if (cmbFeedCategory.Items.Count > 0) cmbFeedCategory.SelectedIndex = 0;
                 FillEpisodesGrid(_currentEpisodes);
                 UpdateSelectedFeedLabel();
                 UpdateFetchedFeedLabel();
@@ -223,7 +223,7 @@ namespace UI
             }
         }
 
-        
+
         private async Task LoadCategoriesAsync()
         {
             _allCategories = (await _categoryService.GetAllCategoriesAsync()).ToList();
@@ -277,7 +277,7 @@ namespace UI
 
         private void cmbCategoryFilter_SelectedIndexChanged(object? sender, EventArgs e) => ApplyCategoryFilter();
 
-        
+
         private void SyncFeedCategoryFromFeed(Poddflöden feed)
         {
             if (string.IsNullOrEmpty(feed.categoryId))
@@ -507,6 +507,10 @@ namespace UI
                 await _categoryService.UpdateCategoryNameAsync(selectedCat.Id, newName);
                 txtEditCategoryName.Clear();
                 await LoadCategoriesAsync();
+                if (_currentFlode != null)
+                {
+                    SyncFeedCategoryFromFeed(_currentFlode);
+                }
                 MessageBox.Show("Category renamed.", "Done",
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
@@ -573,7 +577,7 @@ namespace UI
 
         private void dgvEpisodes_SelectionChanged(object? sender, EventArgs e) => UpdateEpisodeDetailsFromGrid();
 
-        
+
         private bool TryGetSelectedEpisode(out PoddAvsnitt ep)
         {
             ep = null!;
@@ -594,7 +598,7 @@ namespace UI
             txtDescription.Text = $"Title: {ep.title}\r\nPublished: {ep.publishDate}\r\n\r\n{cleanDesc}";
         }
 
-        
+
         private void lblFeedCategory_Click(object sender, EventArgs e) { }
         private void lblCustomName_Click(object sender, EventArgs e) { }
         private void pictureBox1_Click(object sender, EventArgs e) { }
@@ -615,7 +619,7 @@ namespace UI
             pictureBox1);
         }
 
-        
+
         private void ClearTextBoxOnLeave(object? sender, EventArgs e)
         {
             if (sender is not TextBox tb) return;
@@ -626,10 +630,10 @@ namespace UI
 
         private void lblSelectedFeed_Click(object sender, EventArgs e)
         {
-            
+
         }
 
-       
+
         private void UpdateSelectedFeedLabel()
         {
             string text;
@@ -652,6 +656,11 @@ namespace UI
         }
 
         private void lblCategoryFilter_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void txtRssUrl_TextChanged(object sender, EventArgs e)
         {
 
         }

@@ -20,13 +20,6 @@ using System.Xml;
  - Saves a feed with all its episodes atomically (ACID transaction).
  - Renames feeds and assigns/removes categories using transactions.
  - Deletes feeds and their episodes in a single transaction.
-
- Design / Requirements Alignment
- - Uses custom interfaces (IPoddService, IRssParser, IPoddflodeRepository, IPoddAvsnittRepository).
- - All public methods are asynchronous to avoid blocking UI/network operations.
- - MongoDB .NET driver is used directly; transactions wrap insert/update/delete.
- - Validation throws ValidationException (for user/data issues) and ServiceException (for technical issues).
- - Exceptions are caught and rethrown with context so the application can handle them gracefully.
 */
 
 namespace OruMongoDB.BusinessLayer
