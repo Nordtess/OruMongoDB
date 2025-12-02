@@ -13,32 +13,32 @@ using System.Net;
 
 namespace OruMongoDB.Core.Helpers
 {
- public static class HtmlCleaner
- {
- /// <summary>
- /// Converts HTML (or already plain text) to trimmed plain text, decoding entities.
- /// </summary>
- public static string ToPlainText(string html)
- {
- if (string.IsNullOrWhiteSpace(html)) return string.Empty;
+    public static class HtmlCleaner
+    {
+        /// <summary>
+        /// Converts HTML (or already plain text) to trimmed plain text, decoding entities.
+        /// </summary>
+        public static string ToPlainText(string html)
+        {
+            if (string.IsNullOrWhiteSpace(html)) return string.Empty;
 
- // Fast path: if input has no markup characters, just decode entities and trim.
- if (!html.Contains('<'))
- return WebUtility.HtmlDecode(html).Trim();
+            // Fast path: if input has no markup characters, just decode entities and trim.
+            if (!html.Contains('<'))
+                return WebUtility.HtmlDecode(html).Trim();
 
- // Decode entities first (handles cases like &lt;p&gt;...&lt;/p&gt;)
- var decoded = WebUtility.HtmlDecode(html);
+            // Decode entities first (handles cases like &lt;p&gt;...&lt;/p&gt;)
+            var decoded = WebUtility.HtmlDecode(html);
 
- var doc = new HtmlDocument();
- doc.LoadHtml(decoded);
+            var doc = new HtmlDocument();
+            doc.LoadHtml(decoded);
 
- // Extract inner text (HtmlAgilityPack already decodes some entities)
- var text = doc.DocumentNode.InnerText;
+            // Extract inner text (HtmlAgilityPack already decodes some entities)
+            var text = doc.DocumentNode.InnerText;
 
- // Final decode to catch any remaining encoded sequences
- text = WebUtility.HtmlDecode(text);
+            // Final decode to catch any remaining encoded sequences
+            text = WebUtility.HtmlDecode(text);
 
- return text.Trim();
- }
- }
+            return text.Trim();
+        }
+    }
 }

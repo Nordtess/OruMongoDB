@@ -13,13 +13,13 @@ using System.Threading.Tasks;
 
 namespace OruMongoDB.Infrastructure
 {
- public interface ICategoryRepository : IRepository<Kategori>
- {
- // Non-transactional reads come from IRepository (GetAllAsync/GetByIdAsync)
+    public interface ICategoryRepository : IRepository<Kategori>
+    {
+        // Non-transactional reads come from IRepository (GetAllAsync/GetByIdAsync)
 
- // Transaction-aware writes (to be used within an active session)
- Task InsertAsync(IClientSessionHandle session, Kategori category);
- Task UpdateCategoryNameAsync(IClientSessionHandle session, string categoryId, string newName);
- Task DeleteCategoryAsync(IClientSessionHandle session, string categoryId);
- }
+        // Transaction-aware writes (to be used within an active session)
+        Task InsertAsync(IClientSessionHandle session, Kategori category);
+        Task UpdateCategoryNameAsync(IClientSessionHandle session, string categoryId, string newName);
+        Task DeleteCategoryAsync(IClientSessionHandle session, string categoryId);
+    }
 }

@@ -13,15 +13,15 @@ using System.Threading.Tasks;
 
 namespace OruMongoDB.Infrastructure
 {
- public interface IRepository<TEntity> where TEntity : class
- {
- // Reads (non-transactional)
- Task<TEntity> GetByIdAsync(string id);
- Task<IEnumerable<TEntity>> GetAllAsync();
+    public interface IRepository<TEntity> where TEntity : class
+    {
+        // Reads (non-transactional)
+        Task<TEntity> GetByIdAsync(string id);
+        Task<IEnumerable<TEntity>> GetAllAsync();
 
- // Writes (transactional only)
- Task AddAsync(IClientSessionHandle session, TEntity entity);
- Task UpdateAsync(IClientSessionHandle session, string id, TEntity entity);
- Task DeleteAsync(IClientSessionHandle session, string id);
- }
+        // Writes (transactional only)
+        Task AddAsync(IClientSessionHandle session, TEntity entity);
+        Task UpdateAsync(IClientSessionHandle session, string id, TEntity entity);
+        Task DeleteAsync(IClientSessionHandle session, string id);
+    }
 }

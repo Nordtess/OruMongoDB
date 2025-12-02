@@ -79,7 +79,7 @@ namespace OruMongoDB.BusinessLayer
         {
             if (string.IsNullOrWhiteSpace(name))
                 throw new ValidationException("Feed name cannot be empty.");
-            if (name.Length >200)
+            if (name.Length > 200)
                 throw new ValidationException("Feed name is too long (max200 characters).");
         }
 
@@ -135,7 +135,7 @@ namespace OruMongoDB.BusinessLayer
 
             ValidateRssUrlInternal(poddflode.rssUrl);
             ValidateFeedNameInternal(poddflode.displayName);
-            if (avsnittList.Count ==0) throw new ValidationException("There are no episodes to operate on.");
+            if (avsnittList.Count == 0) throw new ValidationException("There are no episodes to operate on.");
 
             // Prevent duplicate subscription by RSS URL.
             var existingPodd = await _poddRepo.GetByUrlAsync(poddflode.rssUrl);
