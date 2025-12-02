@@ -21,9 +21,7 @@ using OruMongoDB.Infrastructure;
 
 namespace OruMongoDB.BusinessLayer
 {
-    /// <summary>
-    /// Application service for managing podcast categories (validation + transactional writes).
-    /// </summary>
+
     public class CategoryService
     {
         private readonly ICategoryRepository _categoryRepository;
@@ -35,17 +33,11 @@ namespace OruMongoDB.BusinessLayer
             _connector = connector;
         }
 
-        /// <summary>
-        /// Returns all categories.
-        /// </summary>
+
         public async Task<IEnumerable<Kategori>> GetAllCategoriesAsync() =>
         await _categoryRepository.GetAllAsync();
 
-        /// <summary>
-        /// Creates a new category if it does not already exist (case-insensitive).
-        /// </summary>
-        /// <param name="name">Category name.</param>
-        /// <exception cref="ValidationException">Thrown when name is empty or already exists.</exception>
+
         public async Task CreateCategoryAsync(string name)
         {
             if (string.IsNullOrWhiteSpace(name))
@@ -67,12 +59,7 @@ namespace OruMongoDB.BusinessLayer
             });
         }
 
-        /// <summary>
-        /// Updates the name of an existing category.
-        /// </summary>
-        /// <param name="categoryId">The category identifier.</param>
-        /// <param name="newName">The new category name.</param>
-        /// <exception cref="ValidationException">Thrown when inputs are invalid.</exception>
+
         public async Task UpdateCategoryNameAsync(string categoryId, string newName)
         {
             if (string.IsNullOrWhiteSpace(categoryId))
@@ -89,11 +76,7 @@ namespace OruMongoDB.BusinessLayer
             });
         }
 
-        /// <summary>
-        /// Deletes a category and removes the assignment from all feeds that reference it.
-        /// </summary>
-        /// <param name="categoryId">The category identifier.</param>
-        /// <exception cref="ValidationException">Thrown when categoryId is empty.</exception>
+
         public async Task DeleteCategoryAsync(string categoryId)
         {
             if (string.IsNullOrWhiteSpace(categoryId))

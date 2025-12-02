@@ -15,9 +15,7 @@ namespace OruMongoDB.Core.Helpers
 {
     public static class HtmlCleaner
     {
-        /// <summary>
-        /// Converts HTML (or already plain text) to trimmed plain text, decoding entities.
-        /// </summary>
+
         public static string ToPlainText(string html)
         {
             if (string.IsNullOrWhiteSpace(html)) return string.Empty;

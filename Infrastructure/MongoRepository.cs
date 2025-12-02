@@ -19,9 +19,7 @@ namespace OruMongoDB.Infrastructure
     {
         protected readonly IMongoCollection<TEntity> _collection;
 
-        /// <summary>
-        /// Initialize repository with a specific collection.
-        /// </summary>
+
         public MongoRepository(IMongoDatabase database, string collectionName)
         {
             if (database is null) throw new ArgumentNullException(nameof(database));

@@ -18,24 +18,24 @@ namespace OruMongoDB.Domain
 {
     public class Poddflöden
     {
-        /// <summary>MongoDB ObjectId primary key (string form).</summary>
+
         [BsonId]
         [BsonRepresentation(BsonType.ObjectId)]
         public string? Id { get; set; } = ObjectId.GenerateNewId().ToString();
 
-        /// <summary>Original RSS feed URL.</summary>
+
         public string rssUrl { get; set; } = string.Empty;
 
-        /// <summary>Display name (can be customized by user).</summary>
+
         public string displayName { get; set; } = string.Empty;
 
-        /// <summary>Category reference (empty string indicates no category assigned).</summary>
+
         public string categoryId { get; set; } = string.Empty;
 
-        /// <summary>True once the feed and episodes have been stored in MongoDB.</summary>
+
         public bool IsSaved { get; set; } = false;
 
-        /// <summary>UTC timestamp when feed was saved. Null until persisted.</summary>
+
         public DateTime? SavedAt { get; set; }
     }
 }

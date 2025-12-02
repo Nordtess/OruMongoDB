@@ -16,11 +16,6 @@ using System.Net;
  - Projects feed metadata to Poddflöden and items to PoddAvsnitt.
  - Safely extracts text/HTML from TextSyndicationContent (avoids showing type names).
  - Strips HTML markup from episode descriptions via HtmlCleaner.
- Design notes:
- - Custom interface enables testability.
- - XmlReader created with Async=true; SyndicationFeed.Load is synchronous so it is executed inside Task.Run to avoid blocking the caller.
- - No persistence or transactions here; higher layers handle MongoDB Atlas storage and ACID transactions.
- - Exceptions bubble up for caller handling (UI/service layer) to maintain resilience.
 */
 
 namespace OruMongoDB.BusinessLayer.Rss
