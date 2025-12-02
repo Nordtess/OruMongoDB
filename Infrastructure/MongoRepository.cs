@@ -9,7 +9,7 @@ using System.Threading.Tasks;
  -------
  Generic MongoDB Atlas–backed repository base for entities.
  - Provides async CRUD operations using the official MongoDB .NET driver.
- - Supports both standalone and transaction-aware operations (via session overloads in derived repos).
+ - Enforces transactional writes only via session overloads.
  - Centralizes common patterns like ObjectId parsing for _id lookups.
 */
 
@@ -42,35 +42,16 @@ namespace OruMongoDB.Infrastructure
             return await _collection.Find(Builders<TEntity>.Filter.Empty).ToListAsync();
         }
 
-        // Creates
-        public Task AddAsync(TEntity entity)
-        {
-            return _collection.InsertOneAsync(entity);
-        }
-
+        // Writes (transactional only)
         public Task AddAsync(IClientSessionHandle session, TEntity entity)
         {
             return _collection.InsertOneAsync(session, entity);
-        }
-
-        // Updates
-        public Task UpdateAsync(string id, TEntity entity)
-        {
-            var filter = Builders<TEntity>.Filter.Eq("_id", ObjectId.Parse(id));
-            return _collection.ReplaceOneAsync(filter, entity);
         }
 
         public Task UpdateAsync(IClientSessionHandle session, string id, TEntity entity)
         {
             var filter = Builders<TEntity>.Filter.Eq("_id", ObjectId.Parse(id));
             return _collection.ReplaceOneAsync(session, filter, entity);
-        }
-
-        // Deletes
-        public Task DeleteAsync(string id)
-        {
-            var filter = Builders<TEntity>.Filter.Eq("_id", ObjectId.Parse(id));
-            return _collection.DeleteOneAsync(filter);
         }
 
         public Task DeleteAsync(IClientSessionHandle session, string id)
